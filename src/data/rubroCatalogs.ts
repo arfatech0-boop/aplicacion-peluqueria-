@@ -649,6 +649,220 @@ export const RUBRO_CATALOGS: Record<string, Product[]> = {
       description: 'Soporte preventivo y correctivo mensual prioritario',
       updatedAt: new Date().toISOString()
     }
+  ],
+
+  'Carnicería / Fiambrería & Granja': [
+    {
+      id: 'prod-car-1',
+      code: '779600100001',
+      name: 'Asado de Tira Especial x Kg',
+      category: 'Cortes Vacunos',
+      supplierId: 'sup-1',
+      costPrice: 6200,
+      salePrice: 9400,
+      stock: 45,
+      minStock: 10,
+      unit: 'kg',
+      brand: 'Frigorífico Central',
+      description: 'Corte de asado vacuno novillito de primera calidad',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'prod-car-2',
+      code: '779600100002',
+      name: 'Nalgas para Milanesas Feteada x Kg',
+      category: 'Cortes Vacunos',
+      supplierId: 'sup-1',
+      costPrice: 7100,
+      salePrice: 10800,
+      stock: 30,
+      minStock: 8,
+      unit: 'kg',
+      brand: 'Frigorífico Central',
+      description: 'Nalga tierna feteada fina especial para milanesas',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'prod-car-3',
+      code: '779600100003',
+      name: 'Pechuga de Pollo Fresca x Kg',
+      category: 'Aves & Granja',
+      supplierId: 'sup-1',
+      costPrice: 4200,
+      salePrice: 6500,
+      stock: 25,
+      minStock: 6,
+      unit: 'kg',
+      brand: 'Granja San Sebastián',
+      description: 'Pechugas deshuesadas limpias de pollo de granja',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'prod-car-4',
+      code: '779600100004',
+      name: 'Jamón Cocido Fiambrería x Kg',
+      category: 'Fiambres & Fiambrería',
+      supplierId: 'sup-1',
+      costPrice: 5800,
+      salePrice: 8900,
+      stock: 12,
+      minStock: 4,
+      unit: 'kg',
+      brand: 'Paladini',
+      description: 'Jamón cocido natural feteado a elección',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'prod-car-5',
+      code: '779600100005',
+      name: 'Queso Tybo de Barra x Kg',
+      category: 'Quesos x Kg',
+      supplierId: 'sup-1',
+      costPrice: 6400,
+      salePrice: 9600,
+      stock: 15,
+      minStock: 5,
+      unit: 'kg',
+      brand: 'La Serenísima / Verónica',
+      description: 'Queso feteado ideal para sándwiches y fiambres',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'prod-car-6',
+      code: '779600100006',
+      name: 'Chorizos de Cerdo Artesanales x Kg',
+      category: 'Embutidos & Achuras',
+      supplierId: 'sup-1',
+      costPrice: 4500,
+      salePrice: 7200,
+      stock: 20,
+      minStock: 5,
+      unit: 'kg',
+      brand: 'Elaboración Propia',
+      description: 'Chorizos puros de cerdo especiados sin TACC',
+      updatedAt: new Date().toISOString()
+    }
+  ],
+
+  'Verdulería / Frutería': [
+    {
+      id: 'prod-ver-1',
+      code: '779700100001',
+      name: 'Papa Negra Selección x Kg',
+      category: 'Hortalizas & Tubérculos',
+      supplierId: 'sup-1',
+      costPrice: 450,
+      salePrice: 850,
+      stock: 120,
+      minStock: 25,
+      unit: 'kg',
+      description: 'Papa de lavada pesada seleccionada por kilo',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'prod-ver-2',
+      code: '779700100002',
+      name: 'Tomate Redondo Comercial x Kg',
+      category: 'Hortalizas & Tubérculos',
+      supplierId: 'sup-1',
+      costPrice: 1200,
+      salePrice: 1950,
+      stock: 60,
+      minStock: 15,
+      unit: 'kg',
+      description: 'Tomate frito y de ensalada fresco de quinta',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'prod-ver-3',
+      code: '779700100003',
+      name: 'Banana Ecuador Premium x Kg',
+      category: 'Frutas de Estación',
+      supplierId: 'sup-1',
+      costPrice: 1100,
+      salePrice: 1800,
+      stock: 40,
+      minStock: 10,
+      unit: 'kg',
+      description: 'Banana madura de importación dulce',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'prod-ver-4',
+      code: '779700100004',
+      name: 'Lechuga Capuchina x Atado',
+      category: 'Verduras de Hoja',
+      supplierId: 'sup-1',
+      costPrice: 600,
+      salePrice: 1100,
+      stock: 30,
+      minStock: 8,
+      unit: 'atado',
+      description: 'Planta de lechuga fresca de quinta',
+      updatedAt: new Date().toISOString()
+    }
+  ],
+
+  'Kiosco / Drugstore': [
+    {
+      id: 'prod-kio-1',
+      code: '779800100001',
+      name: 'Alfajor Chocolate Triple 70g',
+      category: 'Golosinas & Chocolates',
+      supplierId: 'sup-1',
+      costPrice: 550,
+      salePrice: 1000,
+      stock: 50,
+      minStock: 15,
+      unit: 'un',
+      brand: 'Havanna / Guaymallén',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'prod-kio-2',
+      code: '779800100002',
+      name: 'Cigarrillos Atado x20',
+      category: 'Cigarrillos & Tabaco',
+      supplierId: 'sup-1',
+      costPrice: 2100,
+      salePrice: 2600,
+      stock: 40,
+      minStock: 10,
+      unit: 'un',
+      brand: 'Marlboro / Philip Morris',
+      updatedAt: new Date().toISOString()
+    }
+  ],
+
+  'Farmacia / Perfumería': [
+    {
+      id: 'prod-far-1',
+      code: '779900100001',
+      name: 'Ibuprofeno 600mg Caja x10 Comprimidos',
+      category: 'Medicamentos Venta Libre',
+      supplierId: 'sup-1',
+      costPrice: 1400,
+      salePrice: 2300,
+      stock: 35,
+      minStock: 10,
+      unit: 'caja',
+      brand: 'Ibupirac / Actron',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'prod-far-2',
+      code: '779900100002',
+      name: 'Crema Hidratante Facial 50ml',
+      category: 'Dermocosmética',
+      supplierId: 'sup-1',
+      costPrice: 8500,
+      salePrice: 13900,
+      stock: 12,
+      minStock: 4,
+      unit: 'un',
+      brand: 'Nivea / Dermaglós',
+      updatedAt: new Date().toISOString()
+    }
   ]
 };
 
@@ -670,6 +884,18 @@ export function getCatalogForRubro(rubro: string): Product[] {
 
   // Specific keyword fallbacks
   const lower = rubro.toLowerCase();
+  if (lower.includes('carniceria') || lower.includes('carnicería') || lower.includes('fiambre') || lower.includes('granja')) {
+    return RUBRO_CATALOGS['Carnicería / Fiambrería & Granja'];
+  }
+  if (lower.includes('verduleria') || lower.includes('verdulería') || lower.includes('fruta') || lower.includes('frutería')) {
+    return RUBRO_CATALOGS['Verdulería / Frutería'];
+  }
+  if (lower.includes('kiosco') || lower.includes('drugstore')) {
+    return RUBRO_CATALOGS['Kiosco / Drugstore'];
+  }
+  if (lower.includes('farmacia') || lower.includes('perfumeria') || lower.includes('perfumería')) {
+    return RUBRO_CATALOGS['Farmacia / Perfumería'];
+  }
   if (lower.includes('indumentaria') || lower.includes('ropa') || lower.includes('calzado')) {
     return RUBRO_CATALOGS['Indumentaria / Calzado'];
   }

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { AppState, Product, Customer, PaymentMethod, SaleItem, Sale, InvoiceType, TaxCondition } from '../types';
 import { DataService } from '../services/dataService';
-import { generateSaleInvoicePDF, generateThermalTicketPDF } from '../utils/pdfGenerator';
+import { generateSaleInvoicePDF, generateThermalTicketPDF, printThermalTicketDirect } from '../utils/pdfGenerator';
 
 interface POSViewProps {
   appState: AppState;
@@ -26,6 +26,7 @@ interface POSViewProps {
 
 export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileTab, setMobileTab] = useState<'catalog' | 'cart'>('catalog');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -313,10 +314,8 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
       status: 'completed'
     };
 
-    await DataService.processSale(newSale);
+    // 1. Instantly trigger print modal and clear cart for immediate UI feedback
     setLastCompletedSale(newSale);
-
-    // Reset Form
     setCart([]);
     setDiscountAmount(0);
     setAmountPaidCash('');
@@ -328,6 +327,19 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
     setCustomCuitDni('');
     setIsManualInvoiceType(false);
     setCardSurchargePercent(appState.storeInfo.cardSurchargePercent || 10);
+
+    // 2. Prompt cashier directly with native dialog to print ticket
+    const wantsPrint = window.confirm(`¡Venta ${nextInvoiceNum} registrada exitosamente!\n\n¿Desea imprimir el ticket comprobante ahora?`);
+    if (wantsPrint) {
+      printThermalTicketDirect(newSale, appState.storeInfo);
+    }
+
+    // 3. Process sale in data service / cloud database in background
+    try {
+      await DataService.processSale(newSale);
+    } catch (err) {
+      console.error('[POSView] Error saving sale to server:', err);
+    }
   };
 
   return (
@@ -340,10 +352,42 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
         </div>
       </div>
 
+      {/* Mobile Screen Navigation Tabs (Only visible on lg:hidden) */}
+      <div className="flex lg:hidden bg-slate-200/80 p-1.5 rounded-2xl gap-1.5 border border-slate-300/60 shadow-inner">
+        <button
+          type="button"
+          onClick={() => setMobileTab('catalog')}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-2 ${
+            mobileTab === 'catalog'
+              ? 'bg-white text-indigo-700 shadow-md border border-slate-200'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <span>📦 Catálogo de Productos</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('cart')}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-2 ${
+            mobileTab === 'cart'
+              ? 'bg-indigo-600 text-white shadow-md'
+              : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
+          }`}
+        >
+          <ShoppingCart className="w-3.5 h-3.5" />
+          <span>Carrito ({cart.length})</span>
+          {cart.length > 0 && (
+            <span className="ml-1 bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
+              ${totalAmount.toLocaleString('es-AR')}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Main POS Layout (Left: Product Catalog & Search | Right: Active Cart & Checkout) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-16 lg:pb-0">
         {/* Left Column (Catalog): 7 cols */}
-        <div className="lg:col-span-7 space-y-4">
+        <div className={`lg:col-span-7 space-y-4 ${mobileTab === 'catalog' ? 'block' : 'hidden lg:block'}`}>
           {/* Search & Shortcuts Bar */}
           <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
             <div className="relative">
@@ -380,7 +424,7 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
           </div>
 
           {/* Product Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-[580px] overflow-y-auto pr-1 pt-1 pb-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-[580px] overflow-y-auto px-1 pt-2 pb-3">
             {filteredProducts.map((product, idx) => {
               const isSelected = idx === selectedIndex;
               const isLow = product.stock <= product.minStock;
@@ -392,11 +436,11 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
                   key={product.id}
                   ref={el => (productRefs.current[idx] = el)}
                   onClick={() => !isOut && handleSelectProduct(product, idx)}
-                  className={`relative bg-white p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-lg hover:-translate-y-0.5 ${
+                  className={`relative bg-white p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-lg ${
                     isOut
                       ? 'opacity-50 border-slate-200 bg-slate-50/50 cursor-not-allowed'
                       : isSelected
-                      ? 'ring-2 ring-indigo-600 border-indigo-600 bg-indigo-50/30 shadow-md scale-[1.01]'
+                      ? 'border-2 border-indigo-600 bg-indigo-50/40 shadow-md ring-2 ring-indigo-600/20'
                       : 'border-slate-200/80 hover:border-indigo-300 shadow-xs'
                   }`}
                 >
@@ -481,7 +525,7 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
         </div>
 
         {/* Right Column (Cart & Checkout): 5 cols */}
-        <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 flex flex-col justify-between space-y-4">
+        <div className={`lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 flex flex-col justify-between space-y-4 ${mobileTab === 'cart' ? 'flex' : 'hidden lg:flex'}`}>
           <div>
             {/* Header Cart */}
             <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
@@ -929,6 +973,7 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
 
             {/* Complete Sale Button */}
             <button
+              type="button"
               disabled={cart.length === 0}
               onClick={handleCompleteSale}
               className={`w-full py-3.5 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg transition-all flex items-center justify-center space-x-2 ${
@@ -944,21 +989,49 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
         </div>
       </div>
 
+      {/* Floating Mobile Cart Bar (Only visible on mobile screens when products are in cart and viewing catalog) */}
+      {cart.length > 0 && mobileTab === 'catalog' && (
+        <div className="lg:hidden fixed bottom-3 left-3 right-3 z-40 bg-slate-900 text-white p-3 rounded-2xl shadow-2xl flex items-center justify-between border border-slate-800 animate-in slide-in-from-bottom-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-white text-sm shadow-md">
+              {cart.length}
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">Total en Carrito</div>
+              <div className="text-sm font-black text-emerald-400">${totalAmount.toLocaleString('es-AR')}</div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setMobileTab('cart')}
+            className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-xs font-black rounded-xl shadow-lg flex items-center space-x-1.5 active:scale-95 transition-all"
+          >
+            <span>Ver Carrito / Cobrar</span>
+            <CornerDownLeft className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Completed Sale Ticket Modal / Download */}
       {lastCompletedSale && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-center">
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle className="w-8 h-8" />
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 text-center border border-slate-200">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+              <CheckCircle className="w-10 h-10" />
             </div>
 
-            <h3 className="text-xl font-bold text-slate-900">¡Venta Registrada Exitosamente!</h3>
-            <div className="inline-flex items-center space-x-2 bg-slate-100 px-3 py-1 rounded-full text-xs text-slate-700 font-semibold border border-slate-200">
-              <FileText className="w-3.5 h-3.5 text-indigo-600" />
+            <div>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">¡Venta Registrada Exitosamente!</h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">¿Desea imprimir o descargar el comprobante de venta?</p>
+            </div>
+
+            <div className="inline-flex items-center space-x-2 bg-indigo-50 px-3.5 py-1.5 rounded-full text-xs text-indigo-800 font-bold border border-indigo-100">
+              <FileText className="w-4 h-4 text-indigo-600" />
               <span>{lastCompletedSale.invoiceType?.replace('_', ' ') || 'FACTURA B'} N° {lastCompletedSale.invoiceNumber}</span>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl text-left text-xs space-y-2 border border-slate-200">
+            <div className="bg-slate-50 p-4 rounded-2xl text-left text-xs space-y-2 border border-slate-200/80">
               <div className="flex justify-between text-slate-600">
                 <span>Cliente:</span>
                 <span className="font-semibold text-slate-900">{lastCompletedSale.customerName || 'Consumidor Final'}</span>
@@ -985,32 +1058,45 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
               ) : null}
               <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-200">
                 <span className="font-bold text-slate-800">Total Venta:</span>
-                <span className="font-extrabold text-indigo-700 text-sm">${lastCompletedSale.totalAmount.toLocaleString('es-AR')}</span>
+                <span className="font-black text-emerald-600 text-base">${lastCompletedSale.totalAmount.toLocaleString('es-AR')}</span>
               </div>
             </div>
 
-            <div className="space-y-2 pt-1">
+            {/* Direct Action Buttons */}
+            <div className="space-y-2.5 pt-1">
               <button
-                onClick={() => generateSaleInvoicePDF(lastCompletedSale, appState.storeInfo)}
-                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center space-x-2 shadow-md transition-colors"
+                onClick={() => {
+                  printThermalTicketDirect(lastCompletedSale, appState.storeInfo);
+                }}
+                className="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/30 transition-all active:scale-[0.99]"
               >
-                <Printer className="w-4 h-4" />
-                <span>Descargar Factura Oficial AFIP (PDF A4)</span>
+                <Printer className="w-5 h-5" />
+                <span>🖨️ Imprimir Ticket Térmico Directo (80mm)</span>
               </button>
 
-              <button
-                onClick={() => generateThermalTicketPDF(lastCompletedSale, appState.storeInfo)}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center space-x-2 shadow-xs transition-colors"
-              >
-                <FileText className="w-4 h-4 text-emerald-400" />
-                <span>Imprimir Ticket Térmico de Caja (80mm)</span>
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => generateSaleInvoicePDF(lastCompletedSale, appState.storeInfo)}
+                  className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors"
+                >
+                  <FileText className="w-4 h-4 text-indigo-400" />
+                  <span>Descargar Factura A4</span>
+                </button>
+
+                <button
+                  onClick={() => generateThermalTicketPDF(lastCompletedSale, appState.storeInfo)}
+                  className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors border border-slate-300"
+                >
+                  <Printer className="w-4 h-4 text-slate-600" />
+                  <span>Descargar PDF Ticket</span>
+                </button>
+              </div>
 
               <button
                 onClick={() => setLastCompletedSale(null)}
-                className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors"
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 font-bold text-xs transition-colors"
               >
-                Cerrar / Nueva Venta
+                ✖️ No Imprimir / Nueva Venta (ESC)
               </button>
             </div>
           </div>

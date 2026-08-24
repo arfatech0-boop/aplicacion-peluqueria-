@@ -21,7 +21,21 @@ import { Search, Plus, AlertTriangle, ShieldCheck, User, Settings, Store, Credit
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>(DataService.getState());
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [activeTab, setActiveTabState] = useState<ActiveTab>(() => {
+    try {
+      const saved = localStorage.getItem('gc_active_tab');
+      return (saved as ActiveTab) || 'pos';
+    } catch (e) {
+      return 'pos';
+    }
+  });
+
+  const setActiveTab = (tab: ActiveTab) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem('gc_active_tab', tab);
+    } catch (e) {}
+  };
   const [quickSearch, setQuickSearch] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [cardRatesOpen, setCardRatesOpen] = useState(false);

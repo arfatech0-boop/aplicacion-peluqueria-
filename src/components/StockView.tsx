@@ -655,19 +655,81 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
                   <select
                     value={editingProduct.unit || 'un'}
                     onChange={e => setEditingProduct({ ...editingProduct, unit: e.target.value as ProductUnit })}
-                    className="w-full px-3 py-1.5 border rounded bg-slate-50 text-xs focus:ring-1 focus:ring-indigo-500 font-medium"
+                    className="w-full px-3 py-1.5 border rounded bg-slate-50 text-xs focus:ring-1 focus:ring-indigo-500 font-bold text-indigo-900"
                   >
-                    <option value="un">Unidad (un)</option>
-                    <option value="kg">Kilogramos (kg)</option>
-                    <option value="lt">Litros (lt)</option>
-                    <option value="mt">Metros (mt)</option>
-                    <option value="m2">Metros Cuadrados (m²)</option>
-                    <option value="caja">Caja</option>
-                    <option value="pack">Pack / Paquete</option>
-                    <option value="docena">Docena (12 un)</option>
-                    <option value="hs">Horas (hs)</option>
-                    <option value="serv">Servicio</option>
-                    <option value="juego">Juego / Set</option>
+                    {(() => {
+                      const b = (appState.storeInfo.businessType || '').toLowerCase();
+                      if (b.includes('carniceria') || b.includes('carnicería') || b.includes('fiambre') || b.includes('granja')) {
+                        return (
+                          <>
+                            <optgroup label="⭐ RECOMENDADAS PARA CARNICERÍA / FIAMBRERÍA">
+                              <option value="kg">Kilogramos (kg)</option>
+                              <option value="gr">Gramos (gr)</option>
+                              <option value="horma">Horma (queso / fiambre)</option>
+                              <option value="un">Unidad (un)</option>
+                            </optgroup>
+                            <optgroup label="OTRAS UNIDADES">
+                              <option value="caja">Caja</option>
+                              <option value="pack">Pack / Paquete</option>
+                              <option value="lt">Litros (lt)</option>
+                              <option value="docena">Docena (12 un)</option>
+                            </optgroup>
+                          </>
+                        );
+                      }
+                      if (b.includes('verduleria') || b.includes('verdulería') || b.includes('fruta')) {
+                        return (
+                          <>
+                            <optgroup label="⭐ RECOMENDADAS PARA VERDULERÍA">
+                              <option value="kg">Kilogramos (kg)</option>
+                              <option value="atado">Atado (verduras)</option>
+                              <option value="cajón">Cajón</option>
+                              <option value="gr">Gramos (gr)</option>
+                              <option value="un">Unidad (un)</option>
+                            </optgroup>
+                            <optgroup label="OTRAS UNIDADES">
+                              <option value="caja">Caja</option>
+                              <option value="pack">Pack / Paquete</option>
+                            </optgroup>
+                          </>
+                        );
+                      }
+                      if (b.includes('gastronomia') || b.includes('panaderia') || b.includes('panadería')) {
+                        return (
+                          <>
+                            <optgroup label="⭐ RECOMENDADAS PARA PANADERÍA / GASTRONOMÍA">
+                              <option value="docena">Docena (12 un)</option>
+                              <option value="kg">Kilogramos (kg)</option>
+                              <option value="un">Unidad (un)</option>
+                            </optgroup>
+                            <optgroup label="OTRAS UNIDADES">
+                              <option value="caja">Caja</option>
+                              <option value="pack">Pack / Paquete</option>
+                              <option value="lt">Litros (lt)</option>
+                            </optgroup>
+                          </>
+                        );
+                      }
+                      return (
+                        <>
+                          <option value="un">Unidad (un)</option>
+                          <option value="kg">Kilogramos (kg)</option>
+                          <option value="gr">Gramos (gr)</option>
+                          <option value="horma">Horma</option>
+                          <option value="atado">Atado</option>
+                          <option value="cajón">Cajón</option>
+                          <option value="lt">Litros (lt)</option>
+                          <option value="mt">Metros (mt)</option>
+                          <option value="m2">Metros Cuadrados (m²)</option>
+                          <option value="caja">Caja</option>
+                          <option value="pack">Pack / Paquete</option>
+                          <option value="docena">Docena (12 un)</option>
+                          <option value="hs">Horas (hs)</option>
+                          <option value="serv">Servicio</option>
+                          <option value="juego">Juego / Set</option>
+                        </>
+                      );
+                    })()}
                   </select>
                 </div>
               </div>

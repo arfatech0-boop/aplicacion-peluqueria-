@@ -33,11 +33,18 @@ interface PresetRubro {
 
 const RUBRO_PRESETS: PresetRubro[] = [
   {
-    id: 'Comercio General / Multirrubro',
-    name: 'Comercio General',
-    description: 'Bazar, multirrubro, regaleria, kiosco o tienda minorista variada',
-    icon: '🛍️',
-    categories: ['Almacén', 'Bebidas', 'Bazar & Hogar', 'Regalería', 'Electrónica', 'Kiosco', 'Librería', 'Servicios']
+    id: 'Carnicería / Fiambrería & Granja',
+    name: 'Carnicería, Fiambrería & Granja',
+    description: 'Venta de cortes vacunos, cerdo, pollo, achuras, fiambres feteados y quesos por Kg',
+    icon: '🍖',
+    categories: ['Cortes Vacunos', 'Carnes de Cerdo', 'Aves & Granja', 'Fiambres & Fiambrería', 'Quesos x Kg', 'Embutidos & Achuras', 'Preparados & Milanesas']
+  },
+  {
+    id: 'Verdulería / Frutería',
+    name: 'Verdulería & Frutería',
+    description: 'Venta de hortalizas, verduras de hoja, frutas de estación por Kg, atado o cajón',
+    icon: '🥬',
+    categories: ['Verduras de Hoja', 'Hortalizas & Tubérculos', 'Frutas de Estación', 'Cítricos', 'Frutos Secos & Semillas', 'Ofertas x Bolsa/Cajón']
   },
   {
     id: 'Supermercado / Almacén',
@@ -45,6 +52,20 @@ const RUBRO_PRESETS: PresetRubro[] = [
     description: 'Venta de alimentos, fiambre, bebidas, frescos y limpieza',
     icon: '🛒',
     categories: ['Almacén', 'Bebidas & Gaseosas', 'Lácteos & Quesos', 'Fiambres & Embutidos', 'Frescos & Frutas', 'Limpieza & Hogar', 'Golosinas', 'Perfumería']
+  },
+  {
+    id: 'Kiosco / Drugstore',
+    name: 'Kiosco & Drugstore 24hs',
+    description: 'Golosinas, cigarrillos, bebidas frías, galletitas, snacks y cargas',
+    icon: '🍫',
+    categories: ['Golosinas & Chocolates', 'Cigarrillos & Tabaco', 'Bebidas & Energizantes', 'Galletitas & Snacks', 'Artículos de Kiosco', 'Cargas']
+  },
+  {
+    id: 'Farmacia / Perfumería',
+    name: 'Farmacia & Perfumería',
+    description: 'Medicamentos venta libre, dermocosmética, perfumes y cuidado personal',
+    icon: '💊',
+    categories: ['Medicamentos Venta Libre', 'Perfumería & Fragancias', 'Dermocosmética', 'Cuidado Personal', 'Bebés & Maternidad', 'Higiene & Cuidado']
   },
   {
     id: 'Ferretería / Corralón',
@@ -87,6 +108,13 @@ const RUBRO_PRESETS: PresetRubro[] = [
     description: 'Oficios, consultoría, reparaciones, mantenimiento y abonos',
     icon: '💼',
     categories: ['Consultoría & Asesoría', 'Mantenimiento & Reparaciones', 'Instalaciones', 'Mano de Obra', 'Abonos Mensuales', 'Licencias & Software']
+  },
+  {
+    id: 'Comercio General / Multirrubro',
+    name: 'Comercio General',
+    description: 'Bazar, multirrubro, regaleria, kiosco o tienda minorista variada',
+    icon: '🛍️',
+    categories: ['Almacén', 'Bebidas', 'Bazar & Hogar', 'Regalería', 'Electrónica', 'Kiosco', 'Librería', 'Servicios']
   }
 ];
 

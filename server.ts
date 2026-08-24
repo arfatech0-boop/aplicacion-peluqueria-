@@ -571,6 +571,8 @@ app.post('/api/reset-demo', (req, res) => {
   res.json({ success: true, data: appState });
 });
 
+export default app;
+
 // --- VITE MIDDLEWARE SETUP ---
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
@@ -592,4 +594,6 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}

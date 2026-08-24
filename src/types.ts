@@ -1,13 +1,17 @@
-export type ProductUnit = 'un' | 'kg' | 'lt' | 'mt' | 'm2' | 'caja' | 'pack' | 'docena' | 'hs' | 'serv' | 'juego';
+export type ProductUnit = 'un' | 'kg' | 'gr' | 'lt' | 'mt' | 'm2' | 'caja' | 'pack' | 'docena' | 'hs' | 'serv' | 'juego' | 'atado' | 'cajón' | 'horma';
 
 export type TaxCondition = 'Responsable Inscripto' | 'Monotributo' | 'Exento' | 'Consumidor Final / General';
 
 export type BusinessRubro = 
   | 'Supermercado / Almacén'
+  | 'Carnicería / Fiambrería & Granja'
+  | 'Verdulería / Frutería'
+  | 'Kiosco / Drugstore'
   | 'Ferretería / Corralón'
   | 'Indumentaria / Calzado'
   | 'Electrónica / Computación'
   | 'Gastronomía / Panadería'
+  | 'Farmacia / Perfumería'
   | 'Autopartes / Repuestos'
   | 'Servicios / Profesional'
   | 'Comercio General / Multirrubro';
@@ -235,6 +239,9 @@ export interface StoreAccount {
   phone: string;
   email: string;
   active: boolean;
+  isDemo?: boolean;
+  trialExpiresAt?: string;
+  status?: 'active' | 'trial' | 'expired' | 'suspended';
   createdAt: string;
 }
 
@@ -248,6 +255,8 @@ export interface SystemUser {
   name: string;
   role: UserRole;
   active: boolean;
+  isDemo?: boolean;
+  trialExpiresAt?: string;
   createdAt: string;
   lastLogin?: string;
 }

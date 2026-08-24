@@ -292,6 +292,78 @@ export const generateThermalTicketPDF = (sale: Sale, storeInfo: StoreInfo) => {
   doc.save(`Ticket_Termico_${sale.invoiceNumber}.pdf`);
 };
 
+export const printThermalTicketDirect = (sale: Sale, storeInfo: StoreInfo) => {
+  const printWin = window.open('', '_blank');
+  if (!printWin) return;
+
+  const itemsHtml = sale.items.map(item => `
+    <tr>
+      <td style="text-align: left; padding: 2px 0;">${item.productName}</td>
+      <td style="text-align: center; padding: 2px 0;">${item.quantity}</td>
+      <td style="text-align: right; padding: 2px 0;">$${item.unitPrice.toLocaleString('es-AR')}</td>
+      <td style="text-align: right; padding: 2px 0; font-weight: bold;">$${item.subtotal.toLocaleString('es-AR')}</td>
+    </tr>
+  `).join('');
+
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Ticket ${sale.invoiceNumber}</title>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          body { font-family: 'Courier New', Courier, monospace; width: 72mm; margin: 0 auto; padding: 4mm 0; font-size: 11px; color: #000; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+          .bold { font-weight: bold; }
+          .divider { border-top: 1px dashed #000; margin: 6px 0; }
+          table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        </style>
+      </head>
+      <body>
+        <div class="text-center bold" style="font-size: 14px;">${storeInfo.name.toUpperCase()}</div>
+        <div class="text-center" style="font-size: 10px;">CUIT: ${storeInfo.cuit || ''}</div>
+        <div class="text-center" style="font-size: 10px;">${storeInfo.address || ''}</div>
+        <div class="text-center" style="font-size: 10px;">Tel: ${storeInfo.phone || ''}</div>
+        <div class="divider"></div>
+        <div class="text-center bold">TICKET COMPROBANTE N° ${sale.invoiceNumber}</div>
+        <div style="font-size: 10px; margin-top: 3px;">Fecha: ${new Date(sale.date).toLocaleString('es-AR')}</div>
+        <div style="font-size: 10px;">Cliente: ${sale.customerName || 'Consumidor Final'}</div>
+        <div style="font-size: 10px;">Forma de Pago: ${formatPaymentMethod(sale.paymentMethod)}</div>
+        <div class="divider"></div>
+        <table>
+          <thead>
+            <tr style="border-bottom: 1px solid #000;">
+              <th style="text-align: left;">Item</th>
+              <th style="text-align: center;">Cant</th>
+              <th style="text-align: right;">P.Unit</th>
+              <th style="text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+        <div class="divider"></div>
+        ${sale.discount > 0 ? `<div class="text-right">Subtotal: $${sale.subtotal.toLocaleString('es-AR')}</div><div class="text-right">Descuento: -$${sale.discount.toLocaleString('es-AR')}</div>` : ''}
+        ${sale.surcharge && sale.surcharge > 0 ? `<div class="text-right">Recargo: +$${sale.surcharge.toLocaleString('es-AR')}</div>` : ''}
+        <div class="text-right bold" style="font-size: 14px; margin-top: 4px;">TOTAL: $${sale.totalAmount.toLocaleString('es-AR')}</div>
+        <div class="divider"></div>
+        <div class="text-center" style="font-size: 9px; margin-top: 8px;">${storeInfo.receiptHeaderMessage || '¡Gracias por su compra!'}</div>
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          };
+        </script>
+      </body>
+    </html>
+  `);
+  printWin.document.close();
+};
+
+
+
 export const generateCustomerAccountStatementPDF = (
   customer: Customer,
   transactions: CustomerTransaction[],
