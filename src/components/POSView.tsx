@@ -13,7 +13,8 @@ import {
   DollarSign,
   ArrowUpDown,
   CornerDownLeft,
-  Keyboard
+  Keyboard,
+  RotateCcw
 } from 'lucide-react';
 import { AppState, Product, Customer, PaymentMethod, SaleItem, Sale, InvoiceType, TaxCondition } from '../types';
 import { DataService } from '../services/dataService';
@@ -92,10 +93,40 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
     return matchesCategory && matchesSearch;
   });
 
+  const modalOpenedTimeRef = useRef<number>(0);
+
   // Focus search input on mount
   useEffect(() => {
     searchInputRef.current?.focus();
   }, []);
+
+  // Global POS Keyboard Shortcuts (F1, F2, F4, ESC)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      } else if (e.key === 'F2') {
+        e.preventDefault();
+        if (cart.length > 0) {
+          handleCompleteSale();
+        }
+      } else if (e.key === 'F4') {
+        e.preventDefault();
+        if (cart.length > 0 && window.confirm('¿Limpiar y vaciar el carrito actual?')) {
+          setCart([]);
+        }
+      } else if (e.key === 'Escape') {
+        if (!lastCompletedSale) {
+          setSearchQuery('');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [cart, lastCompletedSale]);
 
   // Reset keyboard selection whenever search query or category changes
   useEffect(() => {
@@ -226,6 +257,14 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
     ? amountPaidCash - totalAmount
     : 0;
 
+  const closeModalSafely = () => {
+    // Require at least 600ms to have passed since modal opened to prevent double-click / click-through dismissal
+    if (Date.now() - modalOpenedTimeRef.current < 600) {
+      return;
+    }
+    setLastCompletedSale(null);
+  };
+
   const handleCompleteSale = async () => {
     if (cart.length === 0) return;
 
@@ -282,7 +321,8 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
       }
     }
 
-    const nextInvoiceNum = `FC-${appState.storeInfo.invoicePrefix}-${(appState.sales.length + 1052).toString().padStart(8, '0')}`;
+    const prefix = appState.storeInfo?.invoicePrefix || '0001';
+    const nextInvoiceNum = `FC-${prefix}-${(appState.sales.length + 1052).toString().padStart(8, '0')}`;
     const generatedCae = `743${Math.floor(10000000000 + Math.random() * 90000000000)}`;
     const caeDueDate = new Date(Date.now() + 10 * 86400000).toLocaleDateString('es-AR');
 
@@ -311,10 +351,15 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
       paymentMethod,
       paymentsBreakdown,
       notes: saleNotes,
-      status: 'completed'
+      status: 'completed',
+      amountPaidCash: typeof amountPaidCash === 'number' ? amountPaidCash : undefined,
+      changeDue: changeDue > 0 ? changeDue : undefined
     };
 
-    // 1. Instantly trigger print modal and clear cart for immediate UI feedback
+    // 1. Record modal open time to prevent key repetition closing modal
+    modalOpenedTimeRef.current = Date.now();
+
+    // 2. Instantly trigger print modal and clear cart for immediate UI feedback
     setLastCompletedSale(newSale);
     setCart([]);
     setDiscountAmount(0);
@@ -326,19 +371,31 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
     setSaleNotes('');
     setCustomCuitDni('');
     setIsManualInvoiceType(false);
-    setCardSurchargePercent(appState.storeInfo.cardSurchargePercent || 10);
-
-    // 2. Prompt cashier directly with native dialog to print ticket
-    const wantsPrint = window.confirm(`¡Venta ${nextInvoiceNum} registrada exitosamente!\n\n¿Desea imprimir el ticket comprobante ahora?`);
-    if (wantsPrint) {
-      printThermalTicketDirect(newSale, appState.storeInfo);
-    }
-
-    // 3. Process sale in data service / cloud database in background
+    // 2. Process sale in data service / cloud database in background
     try {
       await DataService.processSale(newSale);
     } catch (err) {
       console.error('[POSView] Error saving sale to server:', err);
+    }
+  };
+
+  const handleUndoLastSale = async () => {
+    if (!lastCompletedSale) return;
+    if (window.confirm(`¿Está seguro de deshacer y anular la venta ${lastCompletedSale.invoiceNumber}?\n\nLos productos volverán a cargarse automáticamente en el carrito.`)) {
+      const res = await DataService.annulSale(lastCompletedSale.id);
+      if (res.success) {
+        setCart(lastCompletedSale.items);
+
+        if (lastCompletedSale.customerId) {
+          const cust = appState.customers.find(c => c.id === lastCompletedSale.customerId);
+          if (cust) setSelectedCustomer(cust);
+        }
+
+        setLastCompletedSale(null);
+        alert('¡Venta deshecha con éxito! Los productos han vuelto a estar cargados en el carrito para que puedas corregir los datos.');
+      } else {
+        alert(res.error || 'Error al anular la venta.');
+      }
     }
   };
 
@@ -347,8 +404,24 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">Punto de Venta (POS)</h1>
+          <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <span>Punto de Venta (POS)</span>
+            <span className="text-[11px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md">Venta Rápida</span>
+          </h1>
           <p className="text-xs text-slate-500">Seleccione productos, cliente y registre comprobantes de venta al instante.</p>
+        </div>
+
+        {/* Keyboard Shortcuts Badges */}
+        <div className="hidden sm:flex items-center gap-1.5 bg-slate-900 text-white p-2 rounded-xl text-[11px] font-mono shadow-sm">
+          <Keyboard className="w-3.5 h-3.5 text-indigo-400 ml-1 mr-0.5" />
+          <span className="bg-slate-800 text-indigo-300 font-bold px-1.5 py-0.5 rounded">F1</span>
+          <span className="text-slate-300 mr-1.5">Buscar</span>
+          <span className="bg-slate-800 text-emerald-400 font-bold px-1.5 py-0.5 rounded">F2</span>
+          <span className="text-slate-300 mr-1.5">Cobrar</span>
+          <span className="bg-slate-800 text-amber-400 font-bold px-1.5 py-0.5 rounded">F4</span>
+          <span className="text-slate-300 mr-1.5">Vaciar</span>
+          <span className="bg-slate-800 text-slate-300 font-bold px-1.5 py-0.5 rounded">ESC</span>
+          <span className="text-slate-300 pr-1">Limpiar</span>
         </div>
       </div>
 
@@ -1013,91 +1086,107 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
         </div>
       )}
 
-      {/* Completed Sale Ticket Modal / Download */}
+      {/* Completed Sale Ticket Modal / Print Choice */}
       {lastCompletedSale && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 text-center border border-slate-200">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-              <CheckCircle className="w-10 h-10" />
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div 
+            onClick={e => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 text-center border border-slate-200 animate-in zoom-in-95 duration-150"
+          >
+            {/* Header Icon */}
+            <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+              <CheckCircle className="w-8 h-8" />
             </div>
 
             <div>
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight">¡Venta Registrada Exitosamente!</h3>
-              <p className="text-xs text-slate-500 font-medium mt-1">¿Desea imprimir o descargar el comprobante de venta?</p>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">¡Venta Registrada Exitosamente!</h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">El comprobante ha sido procesado y guardado en el sistema.</p>
             </div>
 
-            <div className="inline-flex items-center space-x-2 bg-indigo-50 px-3.5 py-1.5 rounded-full text-xs text-indigo-800 font-bold border border-indigo-100">
-              <FileText className="w-4 h-4 text-indigo-600" />
-              <span>{lastCompletedSale.invoiceType?.replace('_', ' ') || 'FACTURA B'} N° {lastCompletedSale.invoiceNumber}</span>
-            </div>
+            {/* Change Due Card (If applicable) */}
+            {lastCompletedSale.changeDue && lastCompletedSale.changeDue > 0 ? (
+              <div className="bg-amber-500 text-white p-3.5 rounded-2xl shadow-md space-y-0.5">
+                <div className="text-[11px] font-extrabold uppercase tracking-wider text-amber-100">💵 Vuelvo a Entregar al Cliente:</div>
+                <div className="text-3xl font-black tracking-tight">${lastCompletedSale.changeDue.toLocaleString('es-AR')}</div>
+              </div>
+            ) : null}
 
+            {/* Sale Summary Box */}
             <div className="bg-slate-50 p-4 rounded-2xl text-left text-xs space-y-2 border border-slate-200/80">
+              <div className="flex justify-between text-slate-600 font-medium">
+                <span>Comprobante:</span>
+                <span className="font-bold text-indigo-700">{lastCompletedSale.invoiceType?.replace('_', ' ') || 'FACTURA B'} N° {lastCompletedSale.invoiceNumber}</span>
+              </div>
               <div className="flex justify-between text-slate-600">
                 <span>Cliente:</span>
                 <span className="font-semibold text-slate-900">{lastCompletedSale.customerName || 'Consumidor Final'}</span>
               </div>
               <div className="flex justify-between text-slate-600">
-                <span>CUIT / DNI:</span>
-                <span className="font-mono text-slate-900">{lastCompletedSale.customerCuitDni || '-'}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>CAE Autorizado:</span>
-                <span className="font-mono text-emerald-700 font-bold">{lastCompletedSale.cae || '74310293847212'}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Forma de Pago:</span>
+                <span>Medio de Pago:</span>
                 <span className="font-semibold capitalize text-slate-900">
-                  {lastCompletedSale.paymentMethod === 'card' ? `Tarjeta (${lastCompletedSale.cardBankName || 'Crédito/Débito'})` : lastCompletedSale.paymentMethod}
+                  {lastCompletedSale.paymentMethod === 'card' ? `Tarjeta (${lastCompletedSale.cardBankName || 'Crédito/Débito'})` : lastCompletedSale.paymentMethod === 'cash' ? 'Efectivo' : lastCompletedSale.paymentMethod}
                 </span>
               </div>
-              {lastCompletedSale.surcharge && lastCompletedSale.surcharge > 0 ? (
-                <div className="flex justify-between text-amber-700 font-medium">
-                  <span>Recargo Aplicado:</span>
-                  <span className="font-bold">+${lastCompletedSale.surcharge.toLocaleString('es-AR')}</span>
-                </div>
-              ) : null}
               <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-200">
-                <span className="font-bold text-slate-800">Total Venta:</span>
+                <span className="font-bold text-slate-800">Total Cobrado:</span>
                 <span className="font-black text-emerald-600 text-base">${lastCompletedSale.totalAmount.toLocaleString('es-AR')}</span>
               </div>
             </div>
 
-            {/* Direct Action Buttons */}
-            <div className="space-y-2.5 pt-1">
+            {/* Decision Banner */}
+            <div className="bg-indigo-50/70 border border-indigo-100 p-3 rounded-2xl text-center">
+              <span className="text-xs font-bold text-indigo-900">¿Desea imprimir o descargar el comprobante para el cliente?</span>
+            </div>
+
+            {/* Print & Action Buttons */}
+            <div className="space-y-2 pt-1">
               <button
-                onClick={() => {
-                  printThermalTicketDirect(lastCompletedSale, appState.storeInfo);
-                }}
-                className="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/30 transition-all active:scale-[0.99]"
+                type="button"
+                onClick={() => generateSaleInvoicePDF(lastCompletedSale, appState.storeInfo)}
+                className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/30 transition-all active:scale-[0.99]"
               >
-                <Printer className="w-5 h-5" />
-                <span>🖨️ Imprimir Ticket Térmico Directo (80mm)</span>
+                <FileText className="w-4 h-4" />
+                <span>🖨️ Imprimir / Descargar Factura AFIP (A4)</span>
               </button>
 
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => generateSaleInvoicePDF(lastCompletedSale, appState.storeInfo)}
-                  className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors"
+                  type="button"
+                  onClick={() => printThermalTicketDirect(lastCompletedSale, appState.storeInfo)}
+                  className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors shadow-xs"
                 >
-                  <FileText className="w-4 h-4 text-indigo-400" />
-                  <span>Descargar Factura A4</span>
+                  <Printer className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Ticket 80mm</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => generateThermalTicketPDF(lastCompletedSale, appState.storeInfo)}
                   className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors border border-slate-300"
                 >
-                  <Printer className="w-4 h-4 text-slate-600" />
-                  <span>Descargar PDF Ticket</span>
+                  <Printer className="w-3.5 h-3.5 text-slate-600" />
+                  <span>PDF Ticket 80mm</span>
                 </button>
               </div>
 
-              <button
-                onClick={() => setLastCompletedSale(null)}
-                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 font-bold text-xs transition-colors"
-              >
-                ✖️ No Imprimir / Nueva Venta (ESC)
-              </button>
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <button
+                  type="button"
+                  onClick={closeModalSafely}
+                  className="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs transition-all border border-slate-300 flex items-center justify-center space-x-1.5"
+                >
+                  <span>✖️ NO IMPRIMIR COMPROBANTE / NUEVA VENTA</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleUndoLastSale}
+                  className="w-full py-2 text-amber-700 hover:text-amber-800 font-extrabold text-[11px] flex items-center justify-center space-x-1.5 transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Deshacer esta venta y volver al carrito</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

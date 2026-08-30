@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { AppState, SystemUser } from './types';
 import { DataService } from './services/dataService';
 import { Navbar, ActiveTab } from './components/Navbar';
@@ -51,6 +51,16 @@ export default function App() {
     }
   });
 
+  const currentUserRef = useRef<SystemUser | null>(currentUser);
+  currentUserRef.current = currentUser;
+
+  const handleLogout = () => {
+    currentUserRef.current = null;
+    localStorage.removeItem('gc_current_user');
+    setCurrentUser(null);
+    DataService.clearSession();
+  };
+
   useEffect(() => {
     // Initialize data service & real-time SSE listener
     DataService.init();
@@ -58,12 +68,14 @@ export default function App() {
     const unsubscribe = DataService.subscribe(newState => {
       setAppState(newState);
       // Synchronize currentUser state if updated
-      if (currentUser) {
-        const updated = newState.users?.find(u => u.id === currentUser.id);
+      const activeUser = currentUserRef.current;
+      const stored = localStorage.getItem('gc_current_user');
+      if (activeUser && stored) {
+        const updated = newState.users?.find(u => u.id === activeUser.id);
         if (updated) {
           if (!updated.active) {
             handleLogout();
-          } else {
+          } else if (updated.name !== activeUser.name || updated.role !== activeUser.role) {
             setCurrentUser(updated);
             localStorage.setItem('gc_current_user', JSON.stringify(updated));
           }
@@ -72,9 +84,10 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [currentUser]);
+  }, []);
 
   const handleLogin = (user: SystemUser, storeId: string) => {
+    currentUserRef.current = user;
     setCurrentUser(user);
     DataService.setCurrentSession(storeId, user.id);
     localStorage.setItem('gc_current_user', JSON.stringify(user));
@@ -89,12 +102,6 @@ export default function App() {
       users: updatedUsers
     }));
     handleLogin(adminUser, newStore.id);
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-    DataService.clearSession();
-    localStorage.removeItem('gc_current_user');
   };
 
   const lowStockCount = appState.products.filter(p => p.stock <= p.minStock).length;
@@ -127,6 +134,7 @@ export default function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenCardRates={() => setCardRatesOpen(true)}
         onOpenUserManagement={() => setUsersModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}

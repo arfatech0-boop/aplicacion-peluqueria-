@@ -22,10 +22,23 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ appState, setActiveTab }) => {
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday = (dateStr: string) => {
+    if (!dateStr) return false;
+    try {
+      const saleDate = new Date(dateStr);
+      const now = new Date();
+      return (
+        saleDate.getFullYear() === now.getFullYear() &&
+        saleDate.getMonth() === now.getMonth() &&
+        saleDate.getDate() === now.getDate()
+      );
+    } catch (e) {
+      return false;
+    }
+  };
 
   // Stats Calculations
-  const todaySales = appState.sales.filter(s => s.status === 'completed' && s.date.slice(0, 10) === todayStr);
+  const todaySales = appState.sales.filter(s => s.status === 'completed' && isToday(s.date));
   const totalSalesTodayAmount = todaySales.reduce((acc, s) => acc + s.totalAmount, 0);
 
   const totalCustomerDebt = appState.customers.reduce((acc, c) => acc + c.currentBalance, 0);

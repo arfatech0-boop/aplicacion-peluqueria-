@@ -26,6 +26,7 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
   const [movDescription, setMovDescription] = useState('');
 
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+  const [isBlindCountMode, setIsBlindCountMode] = useState(false);
   const [actualCashCounted, setActualCashCounted] = useState<number | ''>('');
 
   const handleAddMovement = (e: React.FormEvent) => {
@@ -37,8 +38,8 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
       id: `mov-${Date.now()}`,
       type: movType,
       amount,
-      description: movDescription || (movType === 'in' ? 'Ingreso manual' : 'Egreso/Gasto manual'),
-      category: 'expense',
+      description: movDescription || (movType === 'in' ? 'Ingreso manual' : 'Egreso/Gasto de caja'),
+      category: movDescription.toLowerCase().includes('blindaje') || movDescription.toLowerCase().includes('retiro') ? 'withdrawal' : 'expense',
       date: new Date().toISOString(),
       paymentMethod: 'cash'
     };
@@ -66,7 +67,7 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
     currentRegister.closeDate = new Date().toISOString();
 
     setIsCloseModalOpen(false);
-    alert('¡Caja cerrada correctamente! Resumen guardado en el historial.');
+    alert(`¡Caja cerrada correctamente!\n\nMonto Contado: $${actualCashCounted.toLocaleString('es-AR')}\nDiferencia: $${currentRegister.difference.toLocaleString('es-AR')}`);
   };
 
   return (
@@ -75,21 +76,38 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Control de Caja Diaria & Arqueo</h1>
-          <p className="text-xs text-slate-500">Supervise apertura, ingresos de efectivo, gastos diarios y diferencias de cierre.</p>
+          <p className="text-xs text-slate-500">Supervise apertura, ingresos de efectivo, retiros de blindaje y cierres ciegos de caja.</p>
         </div>
 
         {currentRegister && currentRegister.status === 'open' ? (
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => setIsMovementModalOpen(true)}
+              onClick={() => {
+                setMovType('out');
+                setMovDescription('Retiro de Seguridad / Blindaje de caja');
+                setIsMovementModalOpen(true);
+              }}
+              className="px-3.5 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-white font-semibold text-xs flex items-center space-x-1.5 shadow"
+            >
+              <Minus className="w-4 h-4" />
+              <span>Retiro Blindaje</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setMovType('out');
+                setMovDescription('');
+                setIsMovementModalOpen(true);
+              }}
               className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs flex items-center space-x-1.5 shadow"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Movimiento de Caja</span>
+              <span>+ Movimiento</span>
             </button>
+
             <button
               onClick={() => {
-                setActualCashCounted(currentRegister.expectedTotal);
+                setActualCashCounted('');
                 setIsCloseModalOpen(true);
               }}
               className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center space-x-1.5 shadow"
@@ -174,7 +192,7 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
       {isMovementModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h3 className="font-bold text-slate-900 text-base">Registrar Movimiento de Caja</h3>
+            <h3 className="font-bold text-slate-900 text-base">Registrar Movimiento / Blindaje</h3>
 
             <form onSubmit={handleAddMovement} className="space-y-3">
               <div>
@@ -182,9 +200,9 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
                 <select
                   value={movType}
                   onChange={e => setMovType(e.target.value as any)}
-                  className="w-full px-3 py-1.5 border rounded bg-slate-50"
+                  className="w-full px-3 py-1.5 border rounded bg-slate-50 font-medium"
                 >
-                  <option value="out">Egreso / Gasto de caja (-)</option>
+                  <option value="out">Egreso / Retiro de blindaje (-)</option>
                   <option value="in">Ingreso de dinero (+)</option>
                 </select>
               </div>
@@ -197,7 +215,7 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
                   required
                   value={movAmount}
                   onChange={e => setMovAmount(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full px-3 py-1.5 border rounded bg-slate-50 font-bold"
+                  className="w-full px-3 py-1.5 border rounded bg-slate-50 font-bold text-slate-900"
                 />
               </div>
 
@@ -209,7 +227,7 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
                   value={movDescription}
                   onChange={e => setMovDescription(e.target.value)}
                   className="w-full px-3 py-1.5 border rounded bg-slate-50"
-                  placeholder="Ej. Flete o Pago insumos de limpieza"
+                  placeholder="Ej. Blindaje parcial a caja fuerte o Pago de flete"
                 />
               </div>
 
@@ -233,16 +251,34 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
         </div>
       )}
 
-      {/* Close Register Modal */}
+      {/* Close Register Modal with Blind Count Option */}
       {isCloseModalOpen && currentRegister && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h3 className="font-bold text-slate-900 text-base">Arqueo y Cierre de Caja</h3>
-            <p className="text-slate-600">Total esperado según sistema: <span className="font-bold text-slate-900">${currentRegister.expectedTotal.toLocaleString('es-AR')}</span></p>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base">Arqueo y Cierre de Caja</h3>
+              <label className="flex items-center space-x-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isBlindCountMode}
+                  onChange={e => setIsBlindCountMode(e.target.checked)}
+                  className="rounded text-indigo-600"
+                />
+                <span className="text-[11px] font-bold text-indigo-700">Cierre Ciego</span>
+              </label>
+            </div>
+
+            {!isBlindCountMode ? (
+              <p className="text-slate-600">Total esperado según sistema: <span className="font-bold text-slate-900">${currentRegister.expectedTotal.toLocaleString('es-AR')}</span></p>
+            ) : (
+              <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-800 text-[11px]">
+                🔒 <strong>Modo Cierre Ciego:</strong> Ingrese el dinero contado en billetes sin ver el total registrado por el sistema.
+              </div>
+            )}
 
             <form onSubmit={handleCloseRegister} className="space-y-3">
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">Monto Real Contado en Billete ($) *</label>
+                <label className="font-semibold text-slate-700 block mb-1">Monto Real Contado en Billetes ($) *</label>
                 <input
                   type="number"
                   min="0"
@@ -250,10 +286,11 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
                   value={actualCashCounted}
                   onChange={e => setActualCashCounted(e.target.value ? Number(e.target.value) : '')}
                   className="w-full px-3 py-2 border rounded bg-slate-50 font-bold text-sm text-slate-900"
+                  placeholder="Ingrese importe físico..."
                 />
               </div>
 
-              {typeof actualCashCounted === 'number' && (
+              {!isBlindCountMode && typeof actualCashCounted === 'number' && (
                 <div className={`p-3 rounded-lg text-xs font-bold border ${
                   actualCashCounted - currentRegister.expectedTotal === 0
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-200'

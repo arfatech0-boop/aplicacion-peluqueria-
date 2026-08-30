@@ -243,4 +243,103 @@ export class SupabaseService {
       return null;
     }
   }
+
+  public static async saveProducts(products: Product[]): Promise<void> {
+    try {
+      const records = products.map(p => ({
+        id: p.id,
+        code: p.code,
+        name: p.name,
+        category: p.category,
+        supplier_id: p.supplierId || null,
+        cost_price: p.costPrice,
+        sale_price: p.salePrice,
+        stock: p.stock,
+        min_stock: p.minStock,
+        unit: p.unit || 'un',
+        size: p.size || '',
+        color: p.color || '',
+        brand: p.brand || '',
+        description: p.description || '',
+        updated_at: p.updatedAt || new Date().toISOString()
+      }));
+
+      await supabase.from('products').upsert(records);
+    } catch (err) {
+      console.error('[SupabaseService] Failed to upsert products:', err);
+    }
+  }
+
+  public static async savePriceIncreaseLog(log: GlobalPriceIncreaseLog): Promise<void> {
+    try {
+      await supabase.from('price_increase_logs').insert({
+        id: log.id,
+        supplier_id: log.supplierId,
+        supplier_name: log.supplierName,
+        category_filter: log.categoryFilter,
+        percentage: log.percentage,
+        apply_to_cost: log.applyToCost,
+        apply_to_sale: log.applyToSale,
+        recalculate_margin: log.recalculateMargin,
+        affected_products_count: log.affectedProductsCount,
+        date: log.date
+      });
+    } catch (err) {
+      console.error('[SupabaseService] Failed to save price increase log:', err);
+    }
+  }
+
+  public static async saveCustomer(customer: Customer): Promise<void> {
+    try {
+      await supabase.from('customers').upsert({
+        id: customer.id,
+        name: customer.name,
+        dni_cuit: customer.dniCuit || '',
+        phone: customer.phone || '',
+        email: customer.email || '',
+        address: customer.address || '',
+        credit_limit: customer.creditLimit || 0,
+        current_balance: customer.currentBalance || 0,
+        notes: customer.notes || '',
+        updated_at: customer.updatedAt || new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('[SupabaseService] Failed to save customer:', err);
+    }
+  }
+
+  public static async deleteCustomer(id: string): Promise<void> {
+    try {
+      await supabase.from('customers').delete().eq('id', id);
+    } catch (err) {
+      console.error('[SupabaseService] Failed to delete customer:', err);
+    }
+  }
+
+  public static async saveSale(sale: Sale): Promise<void> {
+    try {
+      await supabase.from('sales').upsert({
+        id: sale.id,
+        invoice_number: sale.invoiceNumber,
+        invoice_type: sale.invoiceType,
+        cae: sale.cae,
+        cae_due_date: sale.caeDueDate,
+        customer_cuit_dni: sale.customerCuitDni,
+        customer_tax_condition: sale.customerTaxCondition,
+        date: sale.date,
+        customer_id: sale.customerId || null,
+        customer_name: sale.customerName || null,
+        items: sale.items || [],
+        subtotal: sale.subtotal,
+        discount: sale.discount,
+        surcharge: sale.surcharge,
+        total_amount: sale.totalAmount,
+        payment_method: sale.paymentMethod,
+        notes: sale.notes || '',
+        status: sale.status
+      });
+    } catch (err) {
+      console.error('[SupabaseService] Failed to save sale:', err);
+    }
+  }
 }

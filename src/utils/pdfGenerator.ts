@@ -29,66 +29,76 @@ export const generateSaleInvoicePDF = (sale: Sale, storeInfo: StoreInfo) => {
   }
 
   // AFIP Top Letter Box in Header
-  doc.setLineWidth(0.5);
-  doc.rect(98, 10, 14, 14); // Letter Box
-  doc.setFontSize(14);
+  doc.setLineWidth(0.8);
+  doc.setDrawColor(15, 23, 42);
+  doc.rect(98, 10, 15, 15); // Letter Box
+  doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
-  doc.text(letter, 105, 20, { align: 'center' });
+  doc.text(letter, 105.5, 21, { align: 'center' });
 
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.text(codeNum, 105, 27, { align: 'center' });
+  doc.setTextColor(51, 65, 85);
+  doc.text(codeNum, 105.5, 28.5, { align: 'center' });
 
   // Left Column - EMISOR
   doc.setTextColor(15, 23, 42);
-  doc.setFontSize(14);
+  doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
-  doc.text(storeInfo.name.toUpperCase(), 14, 18);
+  doc.text((storeInfo.name || 'COMERCIAL CENTRAL PRO').toUpperCase(), 14, 18);
 
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Razón Social: ${storeInfo.name}`, 14, 25);
-  doc.text(`Domicilio Comercial: ${storeInfo.address || 'Av. Corrientes 1234'}`, 14, 30);
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Razón Social: ${storeInfo.name || 'Comercial Central Pro'}`, 14, 25);
+  doc.text(`Domicilio Comercial: ${storeInfo.address || 'Av. San Martín 1450, Ciudad'}`, 14, 30);
   doc.text(`Condición IVA: ${storeInfo.taxCondition || 'Responsable Inscripto'}`, 14, 35);
-  doc.text(`Teléfono: ${storeInfo.phone || '011-4567-8900'}`, 14, 40);
+  doc.text(`Teléfono: ${storeInfo.phone || '011 4589-2310'}`, 14, 40);
 
-  // Vertical Divider
+  // Vertical Divider under Letter Box
   doc.setDrawColor(203, 213, 225);
-  doc.line(105, 29, 105, 45);
+  doc.setLineWidth(0.5);
+  doc.line(105.5, 30, 105.5, 45);
 
   // Right Column - COMPROBANTE
-  doc.setFontSize(13);
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(title, 115, 18);
 
+  const prefixStr = (storeInfo.invoicePrefix || '0001').padStart(4, '0');
+  const compNoClean = sale.invoiceNumber ? sale.invoiceNumber.replace(/^FC-/, '') : `${prefixStr}-00001066`;
+  const formattedCompNo = compNoClean.includes('-') ? compNoClean : `${prefixStr}-${compNoClean.padStart(8, '0')}`;
+
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Punto de Venta: 0001   Comp. Nro: ${sale.invoiceNumber.replace(/^FC-/, '')}`, 115, 25);
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Punto de Venta: ${prefixStr}   Comp. Nro: ${formattedCompNo}`, 115, 25);
   doc.text(`Fecha de Emisión: ${new Date(sale.date).toLocaleDateString('es-AR')}`, 115, 30);
   doc.text(`CUIT Emisor: ${storeInfo.cuit || '30-71234567-8'}`, 115, 35);
-  doc.text(`Ingresos Brutos: ${storeInfo.cuit || 'Exento / CUIT'}`, 115, 40);
+  doc.text(`Ingresos Brutos: ${storeInfo.cuit || '30-71234567-8'}`, 115, 40);
 
-  // Horizontal Line Divider
-  doc.setDrawColor(30, 41, 59);
-  doc.setLineWidth(0.8);
+  // Horizontal Double Line Divider
+  doc.setDrawColor(15, 23, 42);
+  doc.setLineWidth(1.2);
   doc.line(14, 46, 196, 46);
 
   // CLIENT BLOCK BOX
   doc.setFillColor(248, 250, 252);
-  doc.rect(14, 49, 182, 22, 'F');
-  doc.rect(14, 49, 182, 22, 'S');
+  doc.setDrawColor(15, 23, 42);
+  doc.setLineWidth(0.8);
+  doc.rect(14, 49, 182, 24, 'F');
+  doc.rect(14, 49, 182, 24, 'S');
 
+  doc.setTextColor(15, 23, 42);
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
-  doc.text(`CUIT / DNI Cliente: ${sale.customerCuitDni || 'Consumidor Final'}`, 18, 55);
+  doc.text(`CUIT / DNI Cliente: ${sale.customerCuitDni || '20-00000000-0'}`, 18, 55);
   doc.text(`Nombre / Razón Social: ${sale.customerName || 'Consumidor Final'}`, 18, 61);
-  doc.text(`Condición IVA Cliente: ${sale.customerTaxCondition || 'Consumidor Final'}`, 18, 67);
+  doc.text(`Condición IVA Cliente: ${sale.customerTaxCondition || 'Consumidor Final / General'}`, 18, 67);
 
   doc.text(`Condición de Venta: ${formatPaymentMethod(sale.paymentMethod)}`, 115, 55);
   doc.text(`Fecha Vencimiento: ${new Date(sale.date).toLocaleDateString('es-AR')}`, 115, 61);
-  if (sale.notes) {
-    doc.text(`Observaciones: ${sale.notes}`, 115, 67);
-  }
 
   // Calculate Table Items
   const isFacturaA = invType === 'FACTURA_A';
@@ -97,9 +107,9 @@ export const generateSaleInvoicePDF = (sale: Sale, storeInfo: StoreInfo) => {
     const unitP = isFacturaA ? (item.unitPrice / 1.21) : item.unitPrice;
     const subt = isFacturaA ? (item.subtotal / 1.21) : item.subtotal;
     return [
-      item.code || '-',
+      item.code || '779888999001',
       item.productName,
-      item.quantity,
+      item.quantity.toString(),
       'un',
       `$${unitP.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       isFacturaA ? '21%' : '0%',
@@ -108,21 +118,30 @@ export const generateSaleInvoicePDF = (sale: Sale, storeInfo: StoreInfo) => {
   });
 
   autoTable(doc, {
-    startY: 75,
+    startY: 77,
     head: isFacturaA 
       ? [['Código', 'Producto / Descripción', 'Cant.', 'U.M.', 'Precio Neto', 'IVA', 'Subtotal Neto']]
       : [['Código', 'Producto / Descripción', 'Cant.', 'U.M.', 'Precio Unit.', 'Desc.', 'Subtotal']],
     body: tableData,
     headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
     alternateRowStyles: { fillColor: [248, 250, 252] },
-    styles: { fontSize: 8.5, cellPadding: 3 },
+    styles: { fontSize: 8.5, cellPadding: 3.5, textColor: [51, 65, 85] },
+    columnStyles: {
+      0: { cellWidth: 32 },
+      1: { cellWidth: 68 },
+      2: { cellWidth: 15, halign: 'center' },
+      3: { cellWidth: 15, halign: 'center' },
+      4: { cellWidth: 24, halign: 'right' },
+      5: { cellWidth: 14, halign: 'center' },
+      6: { cellWidth: 24, halign: 'right' }
+    }
   });
 
   const finalY = (doc as any).lastAutoTable.finalY + 8;
 
-  // Totals Box
+  // Totals Summary Box (Right Aligned Card)
   doc.setFillColor(241, 245, 249);
-  doc.roundedRect(120, finalY, 76, isFacturaA ? 38 : 30, 2, 2, 'F');
+  doc.roundedRect(116, finalY, 80, isFacturaA ? 38 : 30, 3, 3, 'F');
 
   if (isFacturaA) {
     const netoGravado = Math.round((sale.totalAmount / 1.21) * 100) / 100;
@@ -130,52 +149,55 @@ export const generateSaleInvoicePDF = (sale: Sale, storeInfo: StoreInfo) => {
 
     doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Subtotal Neto Gravado:`, 124, finalY + 8);
+    doc.setTextColor(51, 65, 85);
+    doc.text(`Subtotal Neto Gravado:`, 122, finalY + 8);
     doc.text(`$${netoGravado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 190, finalY + 8, { align: 'right' });
 
-    doc.text(`IVA (21.00%):`, 124, finalY + 16);
+    doc.text(`IVA (21.00%):`, 122, finalY + 16);
     doc.text(`$${totalIva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 190, finalY + 16, { align: 'right' });
 
     if (sale.discount > 0) {
-      doc.text(`Descuento Aplicado:`, 124, finalY + 24);
+      doc.text(`Descuento Aplicado:`, 122, finalY + 24);
       doc.text(`-$${sale.discount.toLocaleString('es-AR')}`, 190, finalY + 24, { align: 'right' });
     }
 
-    doc.setFontSize(11);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
-    doc.text(`TOTAL FACTURADO:`, 124, finalY + 34);
+    doc.text(`TOTAL FACTURADO:`, 122, finalY + 34);
     doc.text(`$${sale.totalAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 190, finalY + 34, { align: 'right' });
   } else {
-    let currentY = finalY + 8;
-    doc.setFontSize(8.5);
+    let currentY = finalY + 9;
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Subtotal:`, 124, currentY);
-    doc.text(`$${sale.subtotal.toLocaleString('es-AR')}`, 190, currentY, { align: 'right' });
+    doc.setTextColor(51, 65, 85);
+    doc.text(`Subtotal:`, 122, currentY);
+    doc.text(`$${sale.subtotal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 190, currentY, { align: 'right' });
 
     if (sale.discount > 0) {
       currentY += 6;
-      doc.text(`Descuento:`, 124, currentY);
+      doc.text(`Descuento:`, 122, currentY);
       doc.text(`-$${sale.discount.toLocaleString('es-AR')}`, 190, currentY, { align: 'right' });
     }
 
     if (sale.surcharge && sale.surcharge > 0) {
       currentY += 6;
-      doc.text(`Recargo Tarjeta (${sale.cardBankName || 'Banco'}):`, 124, currentY);
+      doc.text(`Recargo Tarjeta:`, 122, currentY);
       doc.text(`+$${sale.surcharge.toLocaleString('es-AR')}`, 190, currentY, { align: 'right' });
     }
 
-    currentY += 8;
-    doc.setFontSize(11);
+    currentY += 10;
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
-    doc.text(`TOTAL:`, 124, currentY);
-    doc.text(`$${sale.totalAmount.toLocaleString('es-AR')}`, 190, currentY, { align: 'right' });
+    doc.text(`TOTAL:`, 122, currentY);
+    doc.text(`$${sale.totalAmount.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 190, currentY, { align: 'right' });
   }
 
   // AFIP Footer CAE & QR Box
   const footerY = 250;
   doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.5);
   doc.line(14, footerY - 5, 196, footerY - 5);
 
   // Simulated QR Code Frame
@@ -203,7 +225,8 @@ export const generateSaleInvoicePDF = (sale: Sale, storeInfo: StoreInfo) => {
   doc.text('Comprobante Autorizado por AFIP - Ley de Facturación Electrónica N° 27.440', 45, footerY + 22);
   doc.text(storeInfo.receiptHeaderMessage || '¡Gracias por su compra! Conserve este comprobante.', 105, 282, { align: 'center' });
 
-  doc.save(`${title.replace(/\s+/g, '_')}_${sale.invoiceNumber}.pdf`);
+  const cleanFilename = `${title}_${formattedCompNo.replace(/\s+/g, '_')}.pdf`;
+  doc.save(cleanFilename);
 };
 
 export const generateThermalTicketPDF = (sale: Sale, storeInfo: StoreInfo) => {
@@ -370,61 +393,228 @@ export const generateCustomerAccountStatementPDF = (
   storeInfo: StoreInfo
 ) => {
   const doc = new jsPDF();
+  const dateStr = new Date().toLocaleDateString('es-AR');
 
-  // Header
-  doc.setFillColor(30, 58, 138); // blue-900
-  doc.rect(0, 0, 210, 35, 'F');
+  // AFIP Top Letter Box in Header
+  doc.setLineWidth(0.5);
+  doc.rect(98, 10, 14, 14); // Letter Box
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('CC', 105, 19, { align: 'center' });
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
+  doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('CTA. CTE.', 105, 27, { align: 'center' });
+
+  // Left Column - EMISOR
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(storeInfo.name.toUpperCase(), 14, 18);
-  doc.setFontSize(10);
+
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
-  doc.text('ESTADO DE CUENTA CORRIENTE', 14, 26);
+  doc.text(`Razón Social: ${storeInfo.name}`, 14, 25);
+  doc.text(`Domicilio Comercial: ${storeInfo.address || 'Av. Corrientes 1234'}`, 14, 30);
+  doc.text(`Condición IVA: ${storeInfo.taxCondition || 'Responsable Inscripto'}`, 14, 35);
+  doc.text(`Teléfono: ${storeInfo.phone || '011-4567-8900'}`, 14, 40);
 
-  doc.setFontSize(10);
-  doc.text(`Fecha Emisión: ${new Date().toLocaleDateString('es-AR')}`, 140, 18);
-  doc.text(`Tel: ${storeInfo.phone}`, 140, 26);
+  // Vertical Divider
+  doc.setDrawColor(203, 213, 225);
+  doc.line(105, 29, 105, 45);
 
-  // Customer Card
+  // Right Column - COMPROBANTE
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RESUMEN DE CUENTA CORRIENTE', 115, 18);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Punto de Venta: 0001   Comp. Nro: CC-${customer.id.replace(/^cust-/, '').padStart(8, '0')}`, 115, 25);
+  doc.text(`Fecha de Emisión: ${dateStr}`, 115, 30);
+  doc.text(`CUIT Emisor: ${storeInfo.cuit || '30-71234567-8'}`, 115, 35);
+  doc.text(`Ingresos Brutos: ${storeInfo.cuit || 'Exento / CUIT'}`, 115, 40);
+
+  // Horizontal Line Divider
+  doc.setDrawColor(30, 41, 59);
+  doc.setLineWidth(0.8);
+  doc.line(14, 46, 196, 46);
+
+  // CLIENT BLOCK BOX
   doc.setFillColor(248, 250, 252);
-  doc.roundedRect(14, 42, 182, 32, 2, 2, 'F');
+  doc.rect(14, 49, 182, 22, 'F');
+  doc.rect(14, 49, 182, 22, 'S');
 
-  doc.setTextColor(15, 23, 42);
-  doc.setFontSize(12);
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Cliente: ${customer.name}`, 20, 52);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`DNI / CUIT: ${customer.dniCuit || 'Sin registrar'}`, 20, 59);
-  doc.text(`Tel: ${customer.phone || '-'} | Email: ${customer.email || '-'}`, 20, 66);
+  doc.text(`CUIT / DNI Cliente: ${customer.dniCuit || 'Sin registrar'}`, 18, 55);
+  doc.text(`Nombre / Razón Social: ${customer.name}`, 18, 61);
+  doc.text(`Teléfono / Email: ${customer.phone || '-'} / ${customer.email || '-'}`, 18, 67);
 
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Límite Crédito: $${customer.creditLimit.toLocaleString('es-AR')}`, 130, 52);
-  doc.setTextColor(customer.currentBalance > 0 ? 185 : 22, customer.currentBalance > 0 ? 28 : 101, customer.currentBalance > 0 ? 28 : 52);
-  doc.setFontSize(12);
-  doc.text(`SALDO ACTUAL: $${customer.currentBalance.toLocaleString('es-AR')}`, 130, 62);
+  doc.text(`Condición de Venta: Cuenta Corriente`, 115, 55);
+  doc.text(`Estado Cuenta: ${customer.currentBalance > 0 ? 'Con Saldo Pendiente' : 'Al Día (Sin Deuda)'}`, 115, 61);
+  doc.text(`Observaciones: Detalle Completo de Movimientos Cta Cte`, 115, 67);
 
-  // Table
+  // Table Data
   const tableData = transactions.map(t => [
-    new Date(t.date).toLocaleDateString('es-AR'),
+    new Date(t.date).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
     t.description,
-    t.type === 'sale' ? 'Venta / Cargo' : (t.type === 'payment' ? 'Pago / Entrega' : 'Ajuste'),
+    t.type === 'sale' ? 'Venta Cta Cte' : (t.type === 'payment' ? 'Pago / Entrega' : 'Ajuste Manual'),
     t.type === 'payment' ? `-$${t.amount.toLocaleString('es-AR')}` : `+$${t.amount.toLocaleString('es-AR')}`,
     `$${t.balanceAfter.toLocaleString('es-AR')}`
   ]);
 
   autoTable(doc, {
-    startY: 80,
-    head: [['Fecha', 'Concepto / Comprobante', 'Tipo', 'Monto', 'Saldo Restante']],
+    startY: 76,
+    head: [['Fecha', 'Concepto & Artículos Retirados', 'Tipo Movimiento', 'Monto ($)', 'Saldo Deudor']],
     body: tableData,
-    headStyles: { fillColor: [30, 58, 138], textColor: [255, 255, 255], fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [241, 245, 249] },
-    styles: { fontSize: 9, cellPadding: 3 }
+    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    styles: { fontSize: 8.5, cellPadding: 3.5 },
+    columnStyles: {
+      0: { cellWidth: 32 },
+      1: { cellWidth: 70 },
+      2: { cellWidth: 30 },
+      3: { cellWidth: 25, halign: 'right' },
+      4: { cellWidth: 25, halign: 'right' }
+    }
   });
 
-  doc.save(`CuentaCorriente_${customer.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+  const finalY = (doc as any).lastAutoTable.finalY || 140;
+
+  // Summary Card on bottom right
+  doc.setFillColor(241, 245, 249);
+  doc.roundedRect(115, finalY + 6, 81, 22, 2, 2, 'F');
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 65, 85);
+  doc.text('Subtotal Deuda:', 120, finalY + 14);
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text('SALDO DEUDOR TOTAL:', 120, finalY + 22);
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(customer.currentBalance > 0 ? 185 : 16, customer.currentBalance > 0 ? 28 : 185, customer.currentBalance > 0 ? 28 : 129);
+  doc.text(`$${customer.currentBalance.toLocaleString('es-AR')}`, 190, finalY + 22, { align: 'right' });
+
+  doc.save(`Resumen_CtaCte_${customer.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+};
+
+export const generateCustomerPaymentReceiptPDF = (
+  transaction: { receiptNumber?: string; amount: number; description: string; date: string; paymentMethod?: string },
+  customer: Customer,
+  storeInfo: StoreInfo
+) => {
+  const doc = new jsPDF();
+  const dateStr = new Date(transaction.date).toLocaleDateString('es-AR');
+  const receiptNo = transaction.receiptNumber || `REC-${Date.now().toString().slice(-6)}`;
+
+  // AFIP Top Letter Box in Header
+  doc.setLineWidth(0.5);
+  doc.rect(98, 10, 14, 14); // Letter Box
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('X', 105, 20, { align: 'center' });
+
+  doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('RECIBO', 105, 27, { align: 'center' });
+
+  // Left Column - EMISOR
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(storeInfo.name.toUpperCase(), 14, 18);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Razón Social: ${storeInfo.name}`, 14, 25);
+  doc.text(`Domicilio Comercial: ${storeInfo.address || 'Av. Corrientes 1234'}`, 14, 30);
+  doc.text(`Condición IVA: ${storeInfo.taxCondition || 'Responsable Inscripto'}`, 14, 35);
+  doc.text(`Teléfono: ${storeInfo.phone || '011-4567-8900'}`, 14, 40);
+
+  // Vertical Divider
+  doc.setDrawColor(203, 213, 225);
+  doc.line(105, 29, 105, 45);
+
+  // Right Column - COMPROBANTE
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RECIBO DE COBRANZA', 115, 18);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Punto de Venta: 0001   Comp. Nro: ${receiptNo}`, 115, 25);
+  doc.text(`Fecha de Emisión: ${dateStr}`, 115, 30);
+  doc.text(`CUIT Emisor: ${storeInfo.cuit || '30-71234567-8'}`, 115, 35);
+  doc.text(`Ingresos Brutos: ${storeInfo.cuit || 'Exento / CUIT'}`, 115, 40);
+
+  // Horizontal Line Divider
+  doc.setDrawColor(30, 41, 59);
+  doc.setLineWidth(0.8);
+  doc.line(14, 46, 196, 46);
+
+  // CLIENT BLOCK BOX
+  doc.setFillColor(248, 250, 252);
+  doc.rect(14, 49, 182, 22, 'F');
+  doc.rect(14, 49, 182, 22, 'S');
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`CUIT / DNI Cliente: ${customer.dniCuit || 'Sin registrar'}`, 18, 55);
+  doc.text(`Nombre / Razón Social: ${customer.name}`, 18, 61);
+  doc.text(`Condición IVA Cliente: Consumidor Final / General`, 18, 67);
+
+  doc.text(`Condición de Venta: ${formatPaymentMethod(transaction.paymentMethod || 'cash')}`, 115, 55);
+  doc.text(`Fecha Vencimiento: ${dateStr}`, 115, 61);
+  doc.text(`Observaciones: ${transaction.description || 'Recibo de Cobranza Cta Cte'}`, 115, 67);
+
+  // Table Data
+  const tableData = [
+    [
+      'REC-01',
+      `Cobro / Entrega a Cuenta (${customer.name})`,
+      '1',
+      'un',
+      `$${transaction.amount.toLocaleString('es-AR')}`,
+      '0%',
+      `$${transaction.amount.toLocaleString('es-AR')}`
+    ]
+  ];
+
+  autoTable(doc, {
+    startY: 76,
+    head: [['Código', 'Producto / Descripción', 'Cant.', 'U.M.', 'Precio Unit.', 'Desc.', 'Subtotal']],
+    body: tableData,
+    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    styles: { fontSize: 8.5, cellPadding: 3.5 }
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY || 100;
+
+  // Summary Card on bottom right
+  doc.setFillColor(241, 245, 249);
+  doc.roundedRect(115, finalY + 6, 81, 22, 2, 2, 'F');
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 65, 85);
+  doc.text('Subtotal:', 120, finalY + 14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`$${transaction.amount.toLocaleString('es-AR')}`, 190, finalY + 14, { align: 'right' });
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text('TOTAL:', 120, finalY + 22);
+  doc.text(`$${transaction.amount.toLocaleString('es-AR')}`, 190, finalY + 22, { align: 'right' });
+
+  doc.save(`Recibo_Cobro_${customer.name.replace(/\s+/g, '_')}_${receiptNo}.pdf`);
 };
 
 export const generateWithdrawalReceiptPDF = (withdrawal: CustomerWithdrawal, storeInfo: StoreInfo) => {

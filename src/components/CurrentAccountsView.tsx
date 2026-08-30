@@ -26,7 +26,7 @@ import {
 import { AppState, Customer, CustomerTransaction, Sale, InvoiceType, PaymentMethod, TaxCondition, Cheque } from '../types';
 import { DataService } from '../services/dataService';
 import { exportCustomersExcel } from '../utils/excelExporter';
-import { generateCustomerAccountStatementPDF, generateSaleInvoicePDF } from '../utils/pdfGenerator';
+import { generateCustomerAccountStatementPDF, generateSaleInvoicePDF, generateCustomerPaymentReceiptPDF } from '../utils/pdfGenerator';
 
 interface CurrentAccountsViewProps {
   appState: AppState;
@@ -154,7 +154,7 @@ export const CurrentAccountsView: React.FC<CurrentAccountsViewProps> = ({ appSta
       phone: editingCustomer.phone || '',
       email: editingCustomer.email || '',
       address: editingCustomer.address || '',
-      creditLimit: Number(editingCustomer.creditLimit) || 100000,
+      creditLimit: editingCustomer.creditLimit || 999999999,
       currentBalance: newBalance,
       notes: editingCustomer.notes || '',
       updatedAt: new Date().toISOString()
@@ -542,6 +542,7 @@ export const CurrentAccountsView: React.FC<CurrentAccountsViewProps> = ({ appSta
                     <th className="p-2.5">Tipo Movimiento</th>
                     <th className="p-2.5 text-right">Monto ($)</th>
                     <th className="p-2.5 text-right">Saldo Deudor</th>
+                    <th className="p-2.5 text-center">Comprobante</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -565,6 +566,14 @@ export const CurrentAccountsView: React.FC<CurrentAccountsViewProps> = ({ appSta
                         hour: '2-digit',
                         minute: '2-digit'
                       });
+
+                      const handlePrintTxPDF = () => {
+                        if (relatedSale) {
+                          generateSaleInvoicePDF(relatedSale, appState.storeInfo);
+                        } else {
+                          generateCustomerPaymentReceiptPDF(tx, selectedCustomer, appState.storeInfo);
+                        }
+                      };
 
                       return (
                         <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
@@ -595,6 +604,16 @@ export const CurrentAccountsView: React.FC<CurrentAccountsViewProps> = ({ appSta
                             {tx.type === 'payment' ? `-$${tx.amount.toLocaleString('es-AR')}` : `${tx.type === 'adjustment' ? '⚙️ ' : '+'}$${tx.amount.toLocaleString('es-AR')}`}
                           </td>
                           <td className="p-2.5 text-right font-extrabold text-slate-900 whitespace-nowrap">${tx.balanceAfter.toLocaleString('es-AR')}</td>
+                          <td className="p-2.5 text-center whitespace-nowrap">
+                            <button
+                              onClick={handlePrintTxPDF}
+                              className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs flex items-center space-x-1 transition-colors mx-auto"
+                              title="Imprimir Comprobante PDF"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              <span className="text-[10px]">PDF</span>
+                            </button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -888,28 +907,16 @@ export const CurrentAccountsView: React.FC<CurrentAccountsViewProps> = ({ appSta
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Límite de Crédito ($)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={editingCustomer.creditLimit ?? 150000}
-                    onChange={e => setEditingCustomer({ ...editingCustomer, creditLimit: Number(e.target.value) })}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Saldo Deuda Actual ($)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={editingCustomer.currentBalance ?? 0}
-                    onChange={e => setEditingCustomer({ ...editingCustomer, currentBalance: Number(e.target.value) })}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 font-bold text-red-600"
-                  />
-                </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Saldo Deuda Inicial / Actual ($)</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={editingCustomer.currentBalance ?? 0}
+                  onChange={e => setEditingCustomer({ ...editingCustomer, currentBalance: Number(e.target.value) })}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 font-bold text-red-600"
+                  placeholder="0 (o saldo deudor previo)"
+                />
               </div>
 
               <div>

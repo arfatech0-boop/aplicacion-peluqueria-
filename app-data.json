@@ -1,9 +1,9 @@
 {
   "storeInfo": {
-    "name": "arfate",
+    "name": "Comercial Central Pro",
     "cuit": "30-71234567-8",
     "taxCondition": "Responsable Inscripto",
-    "businessType": "Verdulería / Frutería",
+    "businessType": "Comercio General / Multirrubro",
     "address": "Av. San Martín 1450, Ciudad",
     "phone": "011 4589-2310",
     "email": "ventas@comercialcentral.com",
@@ -14,12 +14,12 @@
     "cardSurchargePercent": 10,
     "receiptHeaderMessage": "¡Gracias por su compra! Conserve este comprobante.",
     "customCategories": [
-      "Verduras de Hoja",
-      "Hortalizas & Tubérculos",
-      "Frutas de Estación",
-      "Cítricos",
-      "Frutos Secos & Semillas",
-      "Ofertas x Bolsa/Cajón"
+      "Bazar & Hogar",
+      "Electrónica",
+      "Regalería",
+      "Librería",
+      "Kiosco",
+      "Bebidas"
     ],
     "cardInterestPlans": [
       {
@@ -64,7 +64,18 @@
     "defaultRespInscriptoInvoiceType": "FACTURA_A",
     "afipPointOfSale": "0001"
   },
-  "users": [],
+  "users": [
+    {
+      "id": "user-admin-default",
+      "username": "admin",
+      "password": "admin",
+      "name": "Administrador Principal",
+      "role": "admin",
+      "active": true,
+      "createdAt": "2026-08-01T00:00:00+00:00",
+      "lastLogin": "2026-08-09T19:25:35.672+00:00"
+    }
+  ],
   "suppliers": [
     {
       "id": "sup-2",
@@ -96,60 +107,106 @@
   ],
   "products": [
     {
-      "id": "prod-ver-1",
-      "code": "779700100001",
-      "name": "Papa Negra Selección x Kg",
-      "category": "Hortalizas & Tubérculos",
+      "id": "prod-gen-1",
+      "code": "779888999001",
+      "name": "Termo de Acero Inoxidable 1 Litro",
+      "category": "Bazar & Hogar",
       "supplierId": "sup-1",
-      "costPrice": 450,
-      "salePrice": 850,
-      "stock": 120,
-      "minStock": 25,
-      "unit": "kg",
-      "description": "Papa de lavada pesada seleccionada por kilo",
-      "updatedAt": "2026-08-24T23:19:54.950Z"
+      "costPrice": 12500,
+      "salePrice": 22000,
+      "stock": 16,
+      "minStock": 5,
+      "unit": "un",
+      "size": "",
+      "color": "",
+      "brand": "Stanley / Lumilagro",
+      "description": "Termo de doble pared con pico cebador cebado continuo 24hs frío/calor",
+      "updatedAt": "2026-08-30T21:53:43.908Z"
     },
     {
-      "id": "prod-ver-2",
-      "code": "779700100002",
-      "name": "Tomate Redondo Comercial x Kg",
-      "category": "Hortalizas & Tubérculos",
+      "id": "prod-gen-2",
+      "code": "779888999002",
+      "name": "Auriculares Inalámbricos Bluetooth TWS",
+      "category": "Electrónica",
       "supplierId": "sup-1",
-      "costPrice": 1200,
-      "salePrice": 1950,
-      "stock": 59,
-      "minStock": 15,
-      "unit": "kg",
-      "description": "Tomate frito y de ensalada fresco de quinta",
-      "updatedAt": "2026-08-24T23:32:30.490Z"
+      "costPrice": 8900,
+      "salePrice": 16500,
+      "stock": 12,
+      "minStock": 6,
+      "unit": "un",
+      "size": "",
+      "color": "",
+      "brand": "Xiaomi / TWS",
+      "description": "Auriculares estéreo con estuche de carga USB-C",
+      "updatedAt": "2026-08-30T21:54:17.278Z"
     },
     {
-      "id": "prod-ver-3",
-      "code": "779700100003",
-      "name": "Banana Ecuador Premium x Kg",
-      "category": "Frutas de Estación",
+      "id": "prod-gen-3",
+      "code": "779888999003",
+      "name": "Caja de Chocolates Surtidos 250g",
+      "category": "Regalería",
       "supplierId": "sup-1",
-      "costPrice": 1100,
-      "salePrice": 1800,
-      "stock": 40,
+      "costPrice": 4200,
+      "salePrice": 7800,
+      "stock": 28,
       "minStock": 10,
-      "unit": "kg",
-      "description": "Banana madura de importación dulce",
-      "updatedAt": "2026-08-24T23:19:54.950Z"
+      "unit": "un",
+      "size": "",
+      "color": "",
+      "brand": "Ferrero / Bon o Bon",
+      "description": "Bombones y chocolates surtidos en caja para regalo",
+      "updatedAt": "2026-08-30T21:54:17.278Z"
     },
     {
-      "id": "prod-ver-4",
-      "code": "779700100004",
-      "name": "Lechuga Capuchina x Atado",
-      "category": "Verduras de Hoja",
+      "id": "prod-gen-4",
+      "code": "779888999004",
+      "name": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+      "category": "Librería",
       "supplierId": "sup-1",
-      "costPrice": 600,
-      "salePrice": 1100,
-      "stock": 29,
+      "costPrice": 2100,
+      "salePrice": 4200,
+      "stock": 24,
+      "minStock": 10,
+      "unit": "pack",
+      "size": "",
+      "color": "",
+      "brand": "BIC / Faber-Castell",
+      "description": "Bolígrafos trazo fino colores surtidos",
+      "updatedAt": "2026-08-30T21:54:17.278Z"
+    },
+    {
+      "id": "prod-gen-5",
+      "code": "779888999005",
+      "name": "Golosinas Surtidas Display Alfajores x12",
+      "category": "Kiosco",
+      "supplierId": "sup-1",
+      "costPrice": 5500,
+      "salePrice": 9600,
+      "stock": 5,
+      "minStock": 5,
+      "unit": "caja",
+      "size": "",
+      "color": "",
+      "brand": "Guaymallén / Havanna",
+      "description": "Caja display alfajores de dulce de leche con baño de chocolate",
+      "updatedAt": "2026-08-30T21:54:17.278Z"
+    },
+    {
+      "id": "prod-gen-6",
+      "code": "779888999006",
+      "name": "Bebida Energizante 473ml Pack x6",
+      "category": "Bebidas",
+      "supplierId": "sup-1",
+      "costPrice": 6000,
+      "salePrice": 10800,
+      "stock": 7,
       "minStock": 8,
-      "unit": "atado",
-      "description": "Planta de lechuga fresca de quinta",
-      "updatedAt": "2026-08-24T23:32:30.490Z"
+      "unit": "pack",
+      "size": "",
+      "color": "",
+      "brand": "Speed / Red Bull",
+      "description": "Latas de bebida energizante fría",
+      "updatedAt": "2026-08-30T21:54:17.278Z"
     }
   ],
   "customers": [
@@ -303,207 +360,16 @@
   ],
   "sales": [
     {
-      "id": "sale-1787614348908",
-      "invoiceNumber": "FC-0001-00001067",
-      "invoiceType": "FACTURA_A",
-      "cae": "74331890675332",
-      "caeDueDate": "3/9/2026",
-      "customerCuitDni": "20-28991234-8",
-      "customerTaxCondition": "Responsable Inscripto",
-      "date": "2026-08-24T23:32:28.908Z",
-      "customerId": "cust-2",
-      "customerName": "Juan Carlos Pérez (Electricidad)",
-      "items": [
-        {
-          "productId": "prod-ver-2",
-          "code": "779700100002",
-          "productName": "Tomate Redondo Comercial x Kg",
-          "quantity": 1,
-          "unitPrice": 1950,
-          "costPrice": 1200,
-          "subtotal": 1950
-        },
-        {
-          "productId": "prod-ver-4",
-          "code": "779700100004",
-          "productName": "Lechuga Capuchina x Atado",
-          "quantity": 1,
-          "unitPrice": 1100,
-          "costPrice": 600,
-          "subtotal": 1100
-        }
-      ],
-      "subtotal": 3050,
-      "discount": 0,
-      "surcharge": 0,
-      "totalAmount": 3050,
-      "paymentMethod": "cash",
-      "notes": "",
-      "status": "completed"
-    },
-    {
-      "id": "sale-1787612800768",
-      "invoiceNumber": "FC-0001-00001066",
+      "id": "sale-1788126857276",
+      "invoiceNumber": "FC-0001-00001069",
       "invoiceType": "FACTURA_B",
-      "cae": "74362069415194",
-      "caeDueDate": "3/9/2026",
+      "cae": "74312574116736",
+      "caeDueDate": "9/9/2026",
       "customerCuitDni": "20-00000000-0",
       "customerTaxCondition": "Consumidor Final / General",
-      "date": "2026-08-24T23:06:40.768Z",
+      "date": "2026-08-30T21:54:17.276Z",
       "customerName": "Consumidor Final",
       "items": [
-        {
-          "productId": "prod-gen-4",
-          "code": "779888999004",
-          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
-          "quantity": 1,
-          "unitPrice": 4200,
-          "costPrice": 2100,
-          "subtotal": 4200
-        },
-        {
-          "productId": "prod-gen-2",
-          "code": "779888999002",
-          "productName": "Auriculares Inalámbricos Bluetooth TWS",
-          "quantity": 1,
-          "unitPrice": 16500,
-          "costPrice": 8900,
-          "subtotal": 16500
-        }
-      ],
-      "subtotal": 20700,
-      "discount": 0,
-      "surcharge": 0,
-      "totalAmount": 20700,
-      "paymentMethod": "cash",
-      "notes": "",
-      "status": "completed"
-    },
-    {
-      "id": "sale-1787612791544",
-      "invoiceNumber": "FC-0001-00001065",
-      "invoiceType": "FACTURA_B",
-      "cae": "74319199496385",
-      "caeDueDate": "3/9/2026",
-      "customerCuitDni": "20-00000000-0",
-      "customerTaxCondition": "Consumidor Final / General",
-      "date": "2026-08-24T23:06:31.544Z",
-      "customerName": "Consumidor Final",
-      "items": [
-        {
-          "productId": "prod-gen-2",
-          "code": "779888999002",
-          "productName": "Auriculares Inalámbricos Bluetooth TWS",
-          "quantity": 2,
-          "unitPrice": 16500,
-          "costPrice": 8900,
-          "subtotal": 33000
-        },
-        {
-          "productId": "prod-gen-4",
-          "code": "779888999004",
-          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
-          "quantity": 1,
-          "unitPrice": 4200,
-          "costPrice": 2100,
-          "subtotal": 4200
-        }
-      ],
-      "subtotal": 37200,
-      "discount": 0,
-      "surcharge": 0,
-      "totalAmount": 37200,
-      "paymentMethod": "cash",
-      "notes": "",
-      "status": "completed"
-    },
-    {
-      "id": "sale-1787612625864",
-      "invoiceNumber": "FC-0001-00001064",
-      "invoiceType": "FACTURA_B",
-      "cae": "74344508084194",
-      "caeDueDate": "3/9/2026",
-      "customerCuitDni": "20-00000000-0",
-      "customerTaxCondition": "Consumidor Final / General",
-      "date": "2026-08-24T23:03:45.864Z",
-      "customerName": "Consumidor Final",
-      "items": [
-        {
-          "productId": "prod-gen-4",
-          "code": "779888999004",
-          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
-          "quantity": 1,
-          "unitPrice": 4200,
-          "costPrice": 2100,
-          "subtotal": 4200
-        },
-        {
-          "productId": "prod-gen-2",
-          "code": "779888999002",
-          "productName": "Auriculares Inalámbricos Bluetooth TWS",
-          "quantity": 1,
-          "unitPrice": 16500,
-          "costPrice": 8900,
-          "subtotal": 16500
-        }
-      ],
-      "subtotal": 20700,
-      "discount": 0,
-      "surcharge": 0,
-      "totalAmount": 20700,
-      "paymentMethod": "cash",
-      "notes": "",
-      "status": "completed"
-    },
-    {
-      "id": "sale-1787612618832",
-      "invoiceNumber": "FC-0001-00001063",
-      "invoiceType": "FACTURA_B",
-      "cae": "74352424638183",
-      "caeDueDate": "3/9/2026",
-      "customerCuitDni": "20-00000000-0",
-      "customerTaxCondition": "Consumidor Final / General",
-      "date": "2026-08-24T23:03:38.832Z",
-      "customerName": "Consumidor Final",
-      "items": [
-        {
-          "productId": "prod-gen-2",
-          "code": "779888999002",
-          "productName": "Auriculares Inalámbricos Bluetooth TWS",
-          "quantity": 2,
-          "unitPrice": 16500,
-          "costPrice": 8900,
-          "subtotal": 33000
-        }
-      ],
-      "subtotal": 33000,
-      "discount": 0,
-      "surcharge": 0,
-      "totalAmount": 33000,
-      "paymentMethod": "cash",
-      "notes": "",
-      "status": "completed"
-    },
-    {
-      "id": "sale-1787612498936",
-      "invoiceNumber": "FC-0001-00001062",
-      "invoiceType": "FACTURA_B",
-      "cae": "74340927329660",
-      "caeDueDate": "3/9/2026",
-      "customerCuitDni": "20-00000000-0",
-      "customerTaxCondition": "Consumidor Final / General",
-      "date": "2026-08-24T23:01:38.936Z",
-      "customerName": "Consumidor Final",
-      "items": [
-        {
-          "productId": "prod-gen-1",
-          "code": "779888999001",
-          "productName": "Termo de Acero Inoxidable 1 Litro",
-          "quantity": 2,
-          "unitPrice": 22000,
-          "costPrice": 12500,
-          "subtotal": 44000
-        },
         {
           "productId": "prod-gen-3",
           "code": "779888999003",
@@ -512,25 +378,61 @@
           "unitPrice": 7800,
           "costPrice": 4200,
           "subtotal": 7800
+        },
+        {
+          "productId": "prod-gen-2",
+          "code": "779888999002",
+          "productName": "Auriculares Inalámbricos Bluetooth TWS",
+          "quantity": 1,
+          "unitPrice": 16500,
+          "costPrice": 8900,
+          "subtotal": 16500
+        },
+        {
+          "productId": "prod-gen-4",
+          "code": "779888999004",
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+          "quantity": 5,
+          "unitPrice": 4200,
+          "costPrice": 2100,
+          "subtotal": 21000
+        },
+        {
+          "productId": "prod-gen-6",
+          "code": "779888999006",
+          "productName": "Bebida Energizante 473ml Pack x6",
+          "quantity": 8,
+          "unitPrice": 10800,
+          "costPrice": 6000,
+          "subtotal": 86400
+        },
+        {
+          "productId": "prod-gen-5",
+          "code": "779888999005",
+          "productName": "Golosinas Surtidas Display Alfajores x12",
+          "quantity": 10,
+          "unitPrice": 9600,
+          "costPrice": 5500,
+          "subtotal": 96000
         }
       ],
-      "subtotal": 51800,
+      "subtotal": 227700,
       "discount": 0,
       "surcharge": 0,
-      "totalAmount": 51800,
+      "totalAmount": 227700,
       "paymentMethod": "cash",
       "notes": "",
       "status": "completed"
     },
     {
-      "id": "sale-1787612491967",
-      "invoiceNumber": "FC-0001-00001061",
+      "id": "sale-1788126843700",
+      "invoiceNumber": "FC-0001-00001068",
       "invoiceType": "FACTURA_B",
-      "cae": "74314018112725",
-      "caeDueDate": "3/9/2026",
+      "cae": "74325884501822",
+      "caeDueDate": "9/9/2026",
       "customerCuitDni": "20-00000000-0",
       "customerTaxCondition": "Consumidor Final / General",
-      "date": "2026-08-24T23:01:31.967Z",
+      "date": "2026-08-30T21:54:03.700Z",
       "customerName": "Consumidor Final",
       "items": [
         {
@@ -561,16 +463,25 @@
       "status": "completed"
     },
     {
-      "id": "sale-1787612306976",
-      "invoiceNumber": "FC-0001-00001060",
+      "id": "sale-1788126823907",
+      "invoiceNumber": "FC-0001-00001067",
       "invoiceType": "FACTURA_B",
-      "cae": "74338677447371",
-      "caeDueDate": "3/9/2026",
+      "cae": "74356714907658",
+      "caeDueDate": "9/9/2026",
       "customerCuitDni": "20-00000000-0",
       "customerTaxCondition": "Consumidor Final / General",
-      "date": "2026-08-24T22:58:26.976Z",
+      "date": "2026-08-30T21:53:43.907Z",
       "customerName": "Consumidor Final",
       "items": [
+        {
+          "productId": "prod-gen-1",
+          "code": "779888999001",
+          "productName": "Termo de Acero Inoxidable 1 Litro",
+          "quantity": 1,
+          "unitPrice": 22000,
+          "costPrice": 12500,
+          "subtotal": 22000
+        },
         {
           "productId": "prod-gen-2",
           "code": "779888999002",
@@ -579,73 +490,6 @@
           "unitPrice": 16500,
           "costPrice": 8900,
           "subtotal": 16500
-        },
-        {
-          "productId": "prod-gen-4",
-          "code": "779888999004",
-          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
-          "quantity": 2,
-          "unitPrice": 4200,
-          "costPrice": 2100,
-          "subtotal": 8400
-        }
-      ],
-      "subtotal": 24900,
-      "discount": 0,
-      "surcharge": 0,
-      "totalAmount": 24900,
-      "paymentMethod": "cash",
-      "notes": "",
-      "status": "completed"
-    },
-    {
-      "id": "sale-1787612295776",
-      "invoiceNumber": "FC-0001-00001059",
-      "invoiceType": "FACTURA_B",
-      "cae": "74362539971718",
-      "caeDueDate": "3/9/2026",
-      "customerCuitDni": "20-00000000-0",
-      "customerTaxCondition": "Consumidor Final / General",
-      "date": "2026-08-24T22:58:15.776Z",
-      "customerName": "Consumidor Final",
-      "items": [
-        {
-          "productId": "prod-gen-2",
-          "code": "779888999002",
-          "productName": "Auriculares Inalámbricos Bluetooth TWS",
-          "quantity": 2,
-          "unitPrice": 16500,
-          "costPrice": 8900,
-          "subtotal": 33000
-        }
-      ],
-      "subtotal": 33000,
-      "discount": 0,
-      "surcharge": 0,
-      "totalAmount": 33000,
-      "paymentMethod": "cash",
-      "notes": "",
-      "status": "completed"
-    },
-    {
-      "id": "sale-1787612050940",
-      "invoiceNumber": "FC-0001-00001058",
-      "invoiceType": "FACTURA_B",
-      "cae": "74350277593067",
-      "caeDueDate": "3/9/2026",
-      "customerCuitDni": "20-00000000-0",
-      "customerTaxCondition": "Consumidor Final / General",
-      "date": "2026-08-24T22:54:10.940Z",
-      "customerName": "Consumidor Final",
-      "items": [
-        {
-          "productId": "prod-gen-2",
-          "code": "779888999002",
-          "productName": "Auriculares Inalámbricos Bluetooth TWS",
-          "quantity": 2,
-          "unitPrice": 16500,
-          "costPrice": 8900,
-          "subtotal": 33000
         },
         {
           "productId": "prod-gen-4",
@@ -657,34 +501,25 @@
           "subtotal": 4200
         }
       ],
-      "subtotal": 37200,
+      "subtotal": 42700,
       "discount": 0,
       "surcharge": 0,
-      "totalAmount": 37200,
+      "totalAmount": 42700,
       "paymentMethod": "cash",
       "notes": "",
       "status": "completed"
     },
     {
-      "id": "sale-1787612040868",
-      "invoiceNumber": "FC-0001-00001057",
+      "id": "sale-1788126808763",
+      "invoiceNumber": "FC-0001-00001066",
       "invoiceType": "FACTURA_B",
-      "cae": "74316775745586",
-      "caeDueDate": "3/9/2026",
+      "cae": "74320812860883",
+      "caeDueDate": "9/9/2026",
       "customerCuitDni": "20-00000000-0",
       "customerTaxCondition": "Consumidor Final / General",
-      "date": "2026-08-24T22:54:00.868Z",
+      "date": "2026-08-30T21:53:28.763Z",
       "customerName": "Consumidor Final",
       "items": [
-        {
-          "productId": "prod-gen-1",
-          "code": "779888999001",
-          "productName": "Termo de Acero Inoxidable 1 Litro",
-          "quantity": 2,
-          "unitPrice": 22000,
-          "costPrice": 12500,
-          "subtotal": 44000
-        },
         {
           "productId": "prod-gen-2",
           "code": "779888999002",
@@ -693,15 +528,80 @@
           "unitPrice": 16500,
           "costPrice": 8900,
           "subtotal": 16500
+        },
+        {
+          "productId": "prod-gen-4",
+          "code": "779888999004",
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+          "quantity": 1,
+          "unitPrice": 4200,
+          "costPrice": 2100,
+          "subtotal": 4200
+        },
+        {
+          "productId": "prod-gen-6",
+          "code": "779888999006",
+          "productName": "Bebida Energizante 473ml Pack x6",
+          "quantity": 1,
+          "unitPrice": 10800,
+          "costPrice": 6000,
+          "subtotal": 10800
         }
       ],
-      "subtotal": 60500,
+      "subtotal": 31500,
       "discount": 0,
       "surcharge": 0,
-      "totalAmount": 60500,
+      "totalAmount": 31500,
       "paymentMethod": "cash",
       "notes": "",
       "status": "completed"
+    },
+    {
+      "id": "sale-1788126630670",
+      "invoiceNumber": "FC-0001-00001066",
+      "invoiceType": "FACTURA_B",
+      "cae": "74399885474758",
+      "caeDueDate": "9/9/2026",
+      "customerCuitDni": "20-00000000-0",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-08-30T21:50:30.670Z",
+      "customerName": "Consumidor Final",
+      "items": [
+        {
+          "productId": "prod-gen-2",
+          "code": "779888999002",
+          "productName": "Auriculares Inalámbricos Bluetooth TWS",
+          "quantity": 1,
+          "unitPrice": 16500,
+          "costPrice": 8900,
+          "subtotal": 16500
+        },
+        {
+          "productId": "prod-gen-4",
+          "code": "779888999004",
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+          "quantity": 1,
+          "unitPrice": 4200,
+          "costPrice": 2100,
+          "subtotal": 4200
+        },
+        {
+          "productId": "prod-gen-6",
+          "code": "779888999006",
+          "productName": "Bebida Energizante 473ml Pack x6",
+          "quantity": 1,
+          "unitPrice": 10800,
+          "costPrice": 6000,
+          "subtotal": 10800
+        }
+      ],
+      "subtotal": 31500,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 31500,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "annulled"
     },
     {
       "id": "sale-1786299435567",
@@ -870,6 +770,363 @@
       "paymentMethod": "card",
       "notes": null,
       "status": "completed"
+    },
+    {
+      "id": "sale-1788125832858",
+      "invoiceNumber": "FC-undefined-00001058",
+      "invoiceType": "FACTURA_B",
+      "cae": "74331967674715",
+      "caeDueDate": "9/9/2026",
+      "customerCuitDni": "20-00000000-0",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-08-30T21:37:12.858+00:00",
+      "customerId": null,
+      "customerName": "Consumidor Final",
+      "items": [
+        {
+          "code": "779888999002",
+          "quantity": 1,
+          "subtotal": 16500,
+          "costPrice": 8900,
+          "productId": "prod-gen-2",
+          "unitPrice": 16500,
+          "productName": "Auriculares Inalámbricos Bluetooth TWS"
+        },
+        {
+          "code": "779888999004",
+          "quantity": 1,
+          "subtotal": 4200,
+          "costPrice": 2100,
+          "productId": "prod-gen-4",
+          "unitPrice": 4200,
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm"
+        }
+      ],
+      "subtotal": 20700,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 20700,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "completed"
+    },
+    {
+      "id": "sale-1788126067536",
+      "invoiceNumber": "FC-undefined-00001059",
+      "invoiceType": "FACTURA_B",
+      "cae": "74316100807482",
+      "caeDueDate": "9/9/2026",
+      "customerCuitDni": "20-00000000-0",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-08-30T21:41:07.536+00:00",
+      "customerId": null,
+      "customerName": "Consumidor Final",
+      "items": [
+        {
+          "code": "779888999002",
+          "quantity": 1,
+          "subtotal": 16500,
+          "costPrice": 8900,
+          "productId": "prod-gen-2",
+          "unitPrice": 16500,
+          "productName": "Auriculares Inalámbricos Bluetooth TWS"
+        },
+        {
+          "code": "779888999004",
+          "quantity": 1,
+          "subtotal": 4200,
+          "costPrice": 2100,
+          "productId": "prod-gen-4",
+          "unitPrice": 4200,
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm"
+        }
+      ],
+      "subtotal": 20700,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 20700,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "completed"
+    },
+    {
+      "id": "sale-1788126073568",
+      "invoiceNumber": "FC-undefined-00001060",
+      "invoiceType": "FACTURA_B",
+      "cae": "74316365485614",
+      "caeDueDate": "9/9/2026",
+      "customerCuitDni": "20-00000000-0",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-08-30T21:41:13.568+00:00",
+      "customerId": null,
+      "customerName": "Consumidor Final",
+      "items": [
+        {
+          "code": "779888999002",
+          "quantity": 1,
+          "subtotal": 16500,
+          "costPrice": 8900,
+          "productId": "prod-gen-2",
+          "unitPrice": 16500,
+          "productName": "Auriculares Inalámbricos Bluetooth TWS"
+        },
+        {
+          "code": "779888999004",
+          "quantity": 1,
+          "subtotal": 4200,
+          "costPrice": 2100,
+          "productId": "prod-gen-4",
+          "unitPrice": 4200,
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm"
+        },
+        {
+          "code": "779888999006",
+          "quantity": 1,
+          "subtotal": 10800,
+          "costPrice": 6000,
+          "productId": "prod-gen-6",
+          "unitPrice": 10800,
+          "productName": "Bebida Energizante 473ml Pack x6"
+        }
+      ],
+      "subtotal": 31500,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 31500,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "completed"
+    },
+    {
+      "id": "sale-1788126232564",
+      "invoiceNumber": "FC-undefined-00001061",
+      "invoiceType": "FACTURA_B",
+      "cae": "74365686142031",
+      "caeDueDate": "9/9/2026",
+      "customerCuitDni": "20-00000000-0",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-08-30T21:43:52.564+00:00",
+      "customerId": null,
+      "customerName": "Consumidor Final",
+      "items": [
+        {
+          "code": "779888999002",
+          "quantity": 1,
+          "subtotal": 16500,
+          "costPrice": 8900,
+          "productId": "prod-gen-2",
+          "unitPrice": 16500,
+          "productName": "Auriculares Inalámbricos Bluetooth TWS"
+        },
+        {
+          "code": "779888999004",
+          "quantity": 1,
+          "subtotal": 4200,
+          "costPrice": 2100,
+          "productId": "prod-gen-4",
+          "unitPrice": 4200,
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm"
+        }
+      ],
+      "subtotal": 20700,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 20700,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "completed"
+    },
+    {
+      "id": "sale-1788126244925",
+      "invoiceNumber": "FC-undefined-00001062",
+      "invoiceType": "FACTURA_B",
+      "cae": "74348499654348",
+      "caeDueDate": "9/9/2026",
+      "customerCuitDni": "20-00000000-0",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-08-30T21:44:04.925+00:00",
+      "customerId": null,
+      "customerName": "Consumidor Final",
+      "items": [
+        {
+          "code": "779888999002",
+          "quantity": 1,
+          "subtotal": 16500,
+          "costPrice": 8900,
+          "productId": "prod-gen-2",
+          "unitPrice": 16500,
+          "productName": "Auriculares Inalámbricos Bluetooth TWS"
+        },
+        {
+          "code": "779888999004",
+          "quantity": 1,
+          "subtotal": 4200,
+          "costPrice": 2100,
+          "productId": "prod-gen-4",
+          "unitPrice": 4200,
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm"
+        },
+        {
+          "code": "779888999003",
+          "quantity": 1,
+          "subtotal": 7800,
+          "costPrice": 4200,
+          "productId": "prod-gen-3",
+          "unitPrice": 7800,
+          "productName": "Caja de Chocolates Surtidos 250g"
+        }
+      ],
+      "subtotal": 28500,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 28500,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "completed"
+    },
+    {
+      "id": "sale-1788126265293",
+      "invoiceNumber": "FC-undefined-00001063",
+      "invoiceType": "FACTURA_B",
+      "cae": "74359663250462",
+      "caeDueDate": "9/9/2026",
+      "customerCuitDni": "20-00000000-0",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-08-30T21:44:25.293+00:00",
+      "customerId": null,
+      "customerName": "Consumidor Final",
+      "items": [
+        {
+          "code": "779888999004",
+          "quantity": 1,
+          "subtotal": 4200,
+          "costPrice": 2100,
+          "productId": "prod-gen-4",
+          "unitPrice": 4200,
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm"
+        },
+        {
+          "code": "779888999002",
+          "quantity": 1,
+          "subtotal": 16500,
+          "costPrice": 8900,
+          "productId": "prod-gen-2",
+          "unitPrice": 16500,
+          "productName": "Auriculares Inalámbricos Bluetooth TWS"
+        },
+        {
+          "code": "779888999006",
+          "quantity": 1,
+          "subtotal": 10800,
+          "costPrice": 6000,
+          "productId": "prod-gen-6",
+          "unitPrice": 10800,
+          "productName": "Bebida Energizante 473ml Pack x6"
+        }
+      ],
+      "subtotal": 31500,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 31500,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "completed"
+    },
+    {
+      "id": "sale-1788126503147",
+      "invoiceNumber": "FC-0001-00001064",
+      "invoiceType": "FACTURA_B",
+      "cae": "74356387756741",
+      "caeDueDate": "9/9/2026",
+      "customerCuitDni": "20-00000000-0",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-08-30T21:48:23.147+00:00",
+      "customerId": null,
+      "customerName": "Consumidor Final",
+      "items": [
+        {
+          "code": "779888999002",
+          "quantity": 1,
+          "subtotal": 16500,
+          "costPrice": 8900,
+          "productId": "prod-gen-2",
+          "unitPrice": 16500,
+          "productName": "Auriculares Inalámbricos Bluetooth TWS"
+        },
+        {
+          "code": "779888999004",
+          "quantity": 1,
+          "subtotal": 4200,
+          "costPrice": 2100,
+          "productId": "prod-gen-4",
+          "unitPrice": 4200,
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm"
+        },
+        {
+          "code": "779888999006",
+          "quantity": 1,
+          "subtotal": 10800,
+          "costPrice": 6000,
+          "productId": "prod-gen-6",
+          "unitPrice": 10800,
+          "productName": "Bebida Energizante 473ml Pack x6"
+        }
+      ],
+      "subtotal": 31500,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 31500,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "completed"
+    },
+    {
+      "id": "sale-1788126506867",
+      "invoiceNumber": "FC-0001-00001065",
+      "invoiceType": "FACTURA_B",
+      "cae": "74338560915465",
+      "caeDueDate": "9/9/2026",
+      "customerCuitDni": "20-00000000-0",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-08-30T21:48:26.867+00:00",
+      "customerId": null,
+      "customerName": "Consumidor Final",
+      "items": [
+        {
+          "code": "779888999002",
+          "quantity": 1,
+          "subtotal": 16500,
+          "costPrice": 8900,
+          "productId": "prod-gen-2",
+          "unitPrice": 16500,
+          "productName": "Auriculares Inalámbricos Bluetooth TWS"
+        },
+        {
+          "code": "779888999004",
+          "quantity": 1,
+          "subtotal": 4200,
+          "costPrice": 2100,
+          "productId": "prod-gen-4",
+          "unitPrice": 4200,
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm"
+        },
+        {
+          "code": "779888999006",
+          "quantity": 1,
+          "subtotal": 10800,
+          "costPrice": 6000,
+          "productId": "prod-gen-6",
+          "unitPrice": 10800,
+          "productName": "Bebida Energizante 473ml Pack x6"
+        }
+      ],
+      "subtotal": 31500,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 31500,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "completed"
     }
   ],
   "cheques": [
@@ -884,7 +1141,7 @@
       "amount": 120000,
       "issueDate": "2026-08-01T00:00:00+00:00",
       "dueDate": "2026-08-15T00:00:00+00:00",
-      "status": "cashed",
+      "status": "in_wallet",
       "notes": "Cheque diferido entregado a cuenta de factura anterior"
     },
     {
@@ -908,109 +1165,64 @@
       "openDate": "2026-08-06T08:00:00+00:00",
       "closeDate": null,
       "initialAmount": 25000,
-      "cashSales": 486250,
+      "cashSales": 466100,
       "accountPayments": 186223,
       "cashExpenses": 5000,
-      "expectedTotal": 692473,
+      "expectedTotal": 672323,
       "status": "open",
       "movements": [
         {
-          "id": "mov-1787614350490",
+          "id": "mov-1788126857278",
           "type": "in",
-          "amount": 3050,
+          "amount": 227700,
+          "description": "Venta FC-0001-00001069 (Efectivo)",
+          "category": "sale",
+          "date": "2026-08-30T21:54:17.276Z",
+          "paymentMethod": "cash"
+        },
+        {
+          "id": "mov-1788126843701",
+          "type": "in",
+          "amount": 20700,
+          "description": "Venta FC-0001-00001068 (Efectivo)",
+          "category": "sale",
+          "date": "2026-08-30T21:54:03.700Z",
+          "paymentMethod": "cash"
+        },
+        {
+          "id": "mov-1788126823908",
+          "type": "in",
+          "amount": 42700,
           "description": "Venta FC-0001-00001067 (Efectivo)",
           "category": "sale",
-          "date": "2026-08-24T23:32:28.908Z",
+          "date": "2026-08-30T21:53:43.907Z",
           "paymentMethod": "cash"
         },
         {
-          "id": "mov-1787612804367",
+          "id": "mov-1788126809071",
           "type": "in",
-          "amount": 20700,
+          "amount": 31500,
           "description": "Venta FC-0001-00001066 (Efectivo)",
           "category": "sale",
-          "date": "2026-08-24T23:06:40.768Z",
+          "date": "2026-08-30T21:53:28.763Z",
           "paymentMethod": "cash"
         },
         {
-          "id": "mov-1787612793712",
-          "type": "in",
-          "amount": 37200,
-          "description": "Venta FC-0001-00001065 (Efectivo)",
-          "category": "sale",
-          "date": "2026-08-24T23:06:31.544Z",
+          "id": "mov-annul-1788126735154",
+          "type": "out",
+          "amount": 31500,
+          "description": "ANULACIÓN Venta FC-0001-00001066",
+          "category": "annulment",
+          "date": "2026-08-30T21:52:15.154Z",
           "paymentMethod": "cash"
         },
         {
-          "id": "mov-1787612625866",
+          "id": "mov-1788126630989",
           "type": "in",
-          "amount": 20700,
-          "description": "Venta FC-0001-00001064 (Efectivo)",
+          "amount": 31500,
+          "description": "Venta FC-0001-00001066 (Efectivo)",
           "category": "sale",
-          "date": "2026-08-24T23:03:45.864Z",
-          "paymentMethod": "cash"
-        },
-        {
-          "id": "mov-1787612619141",
-          "type": "in",
-          "amount": 33000,
-          "description": "Venta FC-0001-00001063 (Efectivo)",
-          "category": "sale",
-          "date": "2026-08-24T23:03:38.832Z",
-          "paymentMethod": "cash"
-        },
-        {
-          "id": "mov-1787612498938",
-          "type": "in",
-          "amount": 51800,
-          "description": "Venta FC-0001-00001062 (Efectivo)",
-          "category": "sale",
-          "date": "2026-08-24T23:01:38.936Z",
-          "paymentMethod": "cash"
-        },
-        {
-          "id": "mov-1787612492282",
-          "type": "in",
-          "amount": 20700,
-          "description": "Venta FC-0001-00001061 (Efectivo)",
-          "category": "sale",
-          "date": "2026-08-24T23:01:31.967Z",
-          "paymentMethod": "cash"
-        },
-        {
-          "id": "mov-1787612306978",
-          "type": "in",
-          "amount": 24900,
-          "description": "Venta FC-0001-00001060 (Efectivo)",
-          "category": "sale",
-          "date": "2026-08-24T22:58:26.976Z",
-          "paymentMethod": "cash"
-        },
-        {
-          "id": "mov-1787612296080",
-          "type": "in",
-          "amount": 33000,
-          "description": "Venta FC-0001-00001059 (Efectivo)",
-          "category": "sale",
-          "date": "2026-08-24T22:58:15.776Z",
-          "paymentMethod": "cash"
-        },
-        {
-          "id": "mov-1787612050942",
-          "type": "in",
-          "amount": 37200,
-          "description": "Venta FC-0001-00001058 (Efectivo)",
-          "category": "sale",
-          "date": "2026-08-24T22:54:10.940Z",
-          "paymentMethod": "cash"
-        },
-        {
-          "id": "mov-1787612041178",
-          "type": "in",
-          "amount": 60500,
-          "description": "Venta FC-0001-00001057 (Efectivo)",
-          "category": "sale",
-          "date": "2026-08-24T22:54:00.868Z",
+          "date": "2026-08-30T21:50:30.670Z",
           "paymentMethod": "cash"
         },
         {
@@ -1073,224 +1285,180 @@
   ],
   "stockMovements": [
     {
-      "id": "sm-1787614350490-kgdb",
-      "productId": "prod-ver-4",
-      "productName": "Lechuga Capuchina x Atado",
+      "id": "sm-1788126857278-2lf4",
+      "productId": "prod-gen-5",
+      "productName": "Golosinas Surtidas Display Alfajores x12",
       "type": "sale",
-      "quantity": 1,
-      "previousStock": 30,
-      "newStock": 29,
-      "date": "2026-08-24T23:32:28.908Z",
-      "reason": "Venta FC-0001-00001067"
+      "quantity": 10,
+      "previousStock": 15,
+      "newStock": 5,
+      "date": "2026-08-30T21:54:17.276Z",
+      "reason": "Venta FC-0001-00001069"
     },
     {
-      "id": "sm-1787614350490-zmzv",
-      "productId": "prod-ver-2",
-      "productName": "Tomate Redondo Comercial x Kg",
+      "id": "sm-1788126857278-fa2w",
+      "productId": "prod-gen-6",
+      "productName": "Bebida Energizante 473ml Pack x6",
       "type": "sale",
-      "quantity": 1,
-      "previousStock": 60,
-      "newStock": 59,
-      "date": "2026-08-24T23:32:28.908Z",
-      "reason": "Venta FC-0001-00001067"
+      "quantity": 8,
+      "previousStock": 15,
+      "newStock": 7,
+      "date": "2026-08-30T21:54:17.276Z",
+      "reason": "Venta FC-0001-00001069"
     },
     {
-      "id": "sm-1787612804367-hhls",
+      "id": "sm-1788126857278-qex1",
+      "productId": "prod-gen-4",
+      "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+      "type": "sale",
+      "quantity": 5,
+      "previousStock": 29,
+      "newStock": 24,
+      "date": "2026-08-30T21:54:17.276Z",
+      "reason": "Venta FC-0001-00001069"
+    },
+    {
+      "id": "sm-1788126857278-r4fv",
       "productId": "prod-gen-2",
       "productName": "Auriculares Inalámbricos Bluetooth TWS",
       "type": "sale",
       "quantity": 1,
       "previousStock": 13,
       "newStock": 12,
-      "date": "2026-08-24T23:06:40.768Z",
-      "reason": "Venta FC-0001-00001066"
+      "date": "2026-08-30T21:54:17.276Z",
+      "reason": "Venta FC-0001-00001069"
     },
     {
-      "id": "sm-1787612804367-m1pl",
+      "id": "sm-1788126857278-fz1g",
+      "productId": "prod-gen-3",
+      "productName": "Caja de Chocolates Surtidos 250g",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 29,
+      "newStock": 28,
+      "date": "2026-08-30T21:54:17.276Z",
+      "reason": "Venta FC-0001-00001069"
+    },
+    {
+      "id": "sm-1788126843701-qqbt",
       "productId": "prod-gen-4",
       "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
       "type": "sale",
       "quantity": 1,
-      "previousStock": 34,
-      "newStock": 33,
-      "date": "2026-08-24T23:06:40.768Z",
-      "reason": "Venta FC-0001-00001066"
+      "previousStock": 30,
+      "newStock": 29,
+      "date": "2026-08-30T21:54:03.700Z",
+      "reason": "Venta FC-0001-00001068"
     },
     {
-      "id": "sm-1787612793712-v3ar",
-      "productId": "prod-gen-4",
-      "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
-      "type": "sale",
-      "quantity": 1,
-      "previousStock": 35,
-      "newStock": 34,
-      "date": "2026-08-24T23:06:31.544Z",
-      "reason": "Venta FC-0001-00001065"
-    },
-    {
-      "id": "sm-1787612793712-dquy",
+      "id": "sm-1788126843701-3w1s",
       "productId": "prod-gen-2",
       "productName": "Auriculares Inalámbricos Bluetooth TWS",
       "type": "sale",
-      "quantity": 2,
-      "previousStock": 15,
+      "quantity": 1,
+      "previousStock": 14,
       "newStock": 13,
-      "date": "2026-08-24T23:06:31.544Z",
-      "reason": "Venta FC-0001-00001065"
+      "date": "2026-08-30T21:54:03.700Z",
+      "reason": "Venta FC-0001-00001068"
     },
     {
-      "id": "sm-1787612625866-0lhz",
+      "id": "sm-1788126823908-yti0",
+      "productId": "prod-gen-4",
+      "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 31,
+      "newStock": 30,
+      "date": "2026-08-30T21:53:43.907Z",
+      "reason": "Venta FC-0001-00001067"
+    },
+    {
+      "id": "sm-1788126823908-6vww",
+      "productId": "prod-gen-2",
+      "productName": "Auriculares Inalámbricos Bluetooth TWS",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 15,
+      "newStock": 14,
+      "date": "2026-08-30T21:53:43.907Z",
+      "reason": "Venta FC-0001-00001067"
+    },
+    {
+      "id": "sm-1788126823908-pt1v",
+      "productId": "prod-gen-1",
+      "productName": "Termo de Acero Inoxidable 1 Litro",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 17,
+      "newStock": 16,
+      "date": "2026-08-30T21:53:43.907Z",
+      "reason": "Venta FC-0001-00001067"
+    },
+    {
+      "id": "sm-1788126809071-gehl",
+      "productId": "prod-gen-6",
+      "productName": "Bebida Energizante 473ml Pack x6",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 16,
+      "newStock": 15,
+      "date": "2026-08-30T21:53:28.763Z",
+      "reason": "Venta FC-0001-00001066"
+    },
+    {
+      "id": "sm-1788126809071-c58s",
+      "productId": "prod-gen-4",
+      "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 32,
+      "newStock": 31,
+      "date": "2026-08-30T21:53:28.763Z",
+      "reason": "Venta FC-0001-00001066"
+    },
+    {
+      "id": "sm-1788126809071-hlp6",
       "productId": "prod-gen-2",
       "productName": "Auriculares Inalámbricos Bluetooth TWS",
       "type": "sale",
       "quantity": 1,
       "previousStock": 16,
       "newStock": 15,
-      "date": "2026-08-24T23:03:45.864Z",
-      "reason": "Venta FC-0001-00001064"
+      "date": "2026-08-30T21:53:28.763Z",
+      "reason": "Venta FC-0001-00001066"
     },
     {
-      "id": "sm-1787612625866-wbqs",
-      "productId": "prod-gen-4",
-      "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+      "id": "sm-1788126630989-ac9v",
+      "productId": "prod-gen-6",
+      "productName": "Bebida Energizante 473ml Pack x6",
       "type": "sale",
       "quantity": 1,
-      "previousStock": 36,
-      "newStock": 35,
-      "date": "2026-08-24T23:03:45.864Z",
-      "reason": "Venta FC-0001-00001064"
-    },
-    {
-      "id": "sm-1787612619141-jq15",
-      "productId": "prod-gen-2",
-      "productName": "Auriculares Inalámbricos Bluetooth TWS",
-      "type": "sale",
-      "quantity": 2,
-      "previousStock": 18,
-      "newStock": 16,
-      "date": "2026-08-24T23:03:38.832Z",
-      "reason": "Venta FC-0001-00001063"
-    },
-    {
-      "id": "sm-1787612498938-1wy3",
-      "productId": "prod-gen-3",
-      "productName": "Caja de Chocolates Surtidos 250g",
-      "type": "sale",
-      "quantity": 1,
-      "previousStock": 30,
-      "newStock": 29,
-      "date": "2026-08-24T23:01:38.936Z",
-      "reason": "Venta FC-0001-00001062"
-    },
-    {
-      "id": "sm-1787612498938-1f4d",
-      "productId": "prod-gen-1",
-      "productName": "Termo de Acero Inoxidable 1 Litro",
-      "type": "sale",
-      "quantity": 2,
       "previousStock": 16,
-      "newStock": 14,
-      "date": "2026-08-24T23:01:38.936Z",
-      "reason": "Venta FC-0001-00001062"
+      "newStock": 15,
+      "date": "2026-08-30T21:50:30.670Z",
+      "reason": "Venta FC-0001-00001066"
     },
     {
-      "id": "sm-1787612492282-3b7y",
+      "id": "sm-1788126630989-47kr",
       "productId": "prod-gen-4",
       "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
       "type": "sale",
       "quantity": 1,
-      "previousStock": 37,
-      "newStock": 36,
-      "date": "2026-08-24T23:01:31.967Z",
-      "reason": "Venta FC-0001-00001061"
+      "previousStock": 32,
+      "newStock": 31,
+      "date": "2026-08-30T21:50:30.670Z",
+      "reason": "Venta FC-0001-00001066"
     },
     {
-      "id": "sm-1787612492282-8cz3",
+      "id": "sm-1788126630989-y7ry",
       "productId": "prod-gen-2",
       "productName": "Auriculares Inalámbricos Bluetooth TWS",
       "type": "sale",
       "quantity": 1,
-      "previousStock": 19,
-      "newStock": 18,
-      "date": "2026-08-24T23:01:31.967Z",
-      "reason": "Venta FC-0001-00001061"
-    },
-    {
-      "id": "sm-1787612306978-uu0q",
-      "productId": "prod-gen-4",
-      "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
-      "type": "sale",
-      "quantity": 2,
-      "previousStock": 39,
-      "newStock": 37,
-      "date": "2026-08-24T22:58:26.976Z",
-      "reason": "Venta FC-0001-00001060"
-    },
-    {
-      "id": "sm-1787612306978-uik8",
-      "productId": "prod-gen-2",
-      "productName": "Auriculares Inalámbricos Bluetooth TWS",
-      "type": "sale",
-      "quantity": 1,
-      "previousStock": 20,
-      "newStock": 19,
-      "date": "2026-08-24T22:58:26.976Z",
-      "reason": "Venta FC-0001-00001060"
-    },
-    {
-      "id": "sm-1787612296080-b17m",
-      "productId": "prod-gen-2",
-      "productName": "Auriculares Inalámbricos Bluetooth TWS",
-      "type": "sale",
-      "quantity": 2,
-      "previousStock": 22,
-      "newStock": 20,
-      "date": "2026-08-24T22:58:15.776Z",
-      "reason": "Venta FC-0001-00001059"
-    },
-    {
-      "id": "sm-1787612050942-57ad",
-      "productId": "prod-gen-4",
-      "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
-      "type": "sale",
-      "quantity": 1,
-      "previousStock": 40,
-      "newStock": 39,
-      "date": "2026-08-24T22:54:10.940Z",
-      "reason": "Venta FC-0001-00001058"
-    },
-    {
-      "id": "sm-1787612050941-mlhy",
-      "productId": "prod-gen-2",
-      "productName": "Auriculares Inalámbricos Bluetooth TWS",
-      "type": "sale",
-      "quantity": 2,
-      "previousStock": 24,
-      "newStock": 22,
-      "date": "2026-08-24T22:54:10.940Z",
-      "reason": "Venta FC-0001-00001058"
-    },
-    {
-      "id": "sm-1787612041178-hl23",
-      "productId": "prod-gen-2",
-      "productName": "Auriculares Inalámbricos Bluetooth TWS",
-      "type": "sale",
-      "quantity": 1,
-      "previousStock": 25,
-      "newStock": 24,
-      "date": "2026-08-24T22:54:00.868Z",
-      "reason": "Venta FC-0001-00001057"
-    },
-    {
-      "id": "sm-1787612041178-iksg",
-      "productId": "prod-gen-1",
-      "productName": "Termo de Acero Inoxidable 1 Litro",
-      "type": "sale",
-      "quantity": 2,
-      "previousStock": 18,
-      "newStock": 16,
-      "date": "2026-08-24T22:54:00.868Z",
-      "reason": "Venta FC-0001-00001057"
+      "previousStock": 16,
+      "newStock": 15,
+      "date": "2026-08-30T21:50:30.670Z",
+      "reason": "Venta FC-0001-00001066"
     },
     {
       "id": "sm-1",

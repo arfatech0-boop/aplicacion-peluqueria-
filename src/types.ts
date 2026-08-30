@@ -143,7 +143,9 @@ export interface Sale {
   paymentMethod: PaymentMethod;
   paymentsBreakdown?: { method: PaymentMethod; amount: number }[];
   notes?: string;
-  status: 'completed' | 'cancelled';
+  status: 'completed' | 'cancelled' | 'annulled';
+  amountPaidCash?: number;
+  changeDue?: number;
 }
 
 export type ChequeStatus = 'pending' | 'in_wallet' | 'deposited' | 'cashed' | 'endorsed' | 'rejected';
@@ -168,7 +170,7 @@ export interface CashMovement {
   type: 'in' | 'out';
   amount: number;
   description: string;
-  category: 'sale' | 'customer_payment' | 'supplier_payment' | 'expense' | 'withdrawal' | 'other';
+  category: 'sale' | 'customer_payment' | 'supplier_payment' | 'expense' | 'withdrawal' | 'annulment' | 'other';
   date: string;
   paymentMethod: PaymentMethod;
 }

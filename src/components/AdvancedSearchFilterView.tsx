@@ -8,9 +8,11 @@ import {
   ShoppingCart, 
   Users, 
   PackageMinus,
-  RefreshCw
+  RefreshCw,
+  RotateCcw
 } from 'lucide-react';
 import { AppState, Sale, CustomerTransaction, CustomerWithdrawal } from '../types';
+import { DataService } from '../services/dataService';
 import { exportSalesExcel } from '../utils/excelExporter';
 import { generateSaleInvoicePDF, generateThermalTicketPDF } from '../utils/pdfGenerator';
 
@@ -215,38 +217,70 @@ export const AdvancedSearchFilterView: React.FC<AdvancedSearchFilterViewProps> =
                   </td>
                 </tr>
               ) : (
-                filteredSales.map(sale => (
-                  <tr key={sale.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-bold font-mono text-slate-900">{sale.invoiceNumber}</td>
-                    <td className="px-4 py-3 text-slate-500">{new Date(sale.date).toLocaleString('es-AR')}</td>
-                    <td className="px-4 py-3 font-medium text-slate-800">{sale.customerName || 'Consumidor Final'}</td>
-                    <td className="px-4 py-3 capitalize text-slate-600">
-                      {sale.paymentMethod === 'current_account' ? 'Cuenta Corriente' : sale.paymentMethod}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 max-w-xs truncate">
-                      {sale.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}
-                    </td>
-                    <td className="px-4 py-3 text-right font-extrabold text-slate-900">${sale.totalAmount.toLocaleString('es-AR')}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end space-x-1">
-                        <button
-                          onClick={() => generateSaleInvoicePDF(sale, appState.storeInfo)}
-                          className="p-1.5 rounded text-indigo-600 hover:bg-indigo-50 transition-colors"
-                          title="Descargar Factura Oficial AFIP (PDF A4)"
-                        >
-                          <FileText className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => generateThermalTicketPDF(sale, appState.storeInfo)}
-                          className="p-1.5 rounded text-slate-700 hover:bg-slate-100 transition-colors"
-                          title="Imprimir Ticket Térmico de Caja (80mm)"
-                        >
-                          <ShoppingCart className="w-4 h-4 text-emerald-600" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                filteredSales.map(sale => {
+                  const isAnnulled = sale.status === 'annulled';
+                  const handleAnnulSaleFromHistory = async () => {
+                    if (window.confirm(`¿Está seguro de anular la venta ${sale.invoiceNumber} ($${sale.totalAmount.toLocaleString('es-AR')})?\n\nEsta acción devolverá los productos al stock y revertirá los saldos/caja.`)) {
+                      const res = await DataService.annulSale(sale.id);
+                      if (res.success) {
+                        alert(`Venta ${sale.invoiceNumber} anulada con éxito.`);
+                      } else {
+                        alert(res.error || 'Error al anular la venta.');
+                      }
+                    }
+                  };
+
+                  return (
+                    <tr key={sale.id} className={`hover:bg-slate-50 transition-colors ${isAnnulled ? 'opacity-60 bg-red-50/30' : ''}`}>
+                      <td className="px-4 py-3 font-bold font-mono text-slate-900">
+                        {sale.invoiceNumber}
+                        {isAnnulled && (
+                          <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-red-100 text-red-700 border border-red-300">
+                            ANULADA
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">{new Date(sale.date).toLocaleString('es-AR')}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800">{sale.customerName || 'Consumidor Final'}</td>
+                      <td className="px-4 py-3 capitalize text-slate-600">
+                        {sale.paymentMethod === 'current_account' ? 'Cuenta Corriente' : sale.paymentMethod}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 max-w-xs truncate">
+                        {sale.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}
+                      </td>
+                      <td className={`px-4 py-3 text-right font-extrabold ${isAnnulled ? 'line-through text-red-500' : 'text-slate-900'}`}>
+                        ${sale.totalAmount.toLocaleString('es-AR')}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end space-x-1">
+                          <button
+                            onClick={() => generateSaleInvoicePDF(sale, appState.storeInfo)}
+                            className="p-1.5 rounded text-indigo-600 hover:bg-indigo-50 transition-colors"
+                            title="Descargar Factura Oficial AFIP (PDF A4)"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => generateThermalTicketPDF(sale, appState.storeInfo)}
+                            className="p-1.5 rounded text-slate-700 hover:bg-slate-100 transition-colors"
+                            title="Imprimir Ticket Térmico de Caja (80mm)"
+                          >
+                            <ShoppingCart className="w-4 h-4 text-emerald-600" />
+                          </button>
+                          {!isAnnulled && (
+                            <button
+                              onClick={handleAnnulSaleFromHistory}
+                              className="p-1.5 rounded text-red-600 hover:bg-red-50 transition-colors"
+                              title="Anular Venta / Nota de Crédito (Devuelve Stock y Revierte Saldos)"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

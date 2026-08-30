@@ -82,14 +82,14 @@ export class DataService {
   public static subscribe(listener: (state: AppState) => void): () => void {
     this.listeners.push(listener);
     // Initial call
-    listener(this.state);
+    listener(this.getState());
     return () => {
       this.listeners = this.listeners.filter(l => l !== listener);
     };
   }
 
   private static notify() {
-    this.listeners.forEach(l => l(this.state));
+    this.listeners.forEach(l => l(this.getState()));
   }
 
   public static isRealtimeConnected(): boolean {
@@ -331,6 +331,58 @@ export class DataService {
     }
 
     this.notify();
+  }
+
+  public static async annulSale(saleId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(`/api/sales/${saleId}/annul`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          this.state = json.data;
+          this.notify();
+          return { success: true };
+        }
+        return { success: false, error: json.error || 'Error al anular la venta' };
+      }
+    } catch (e) {}
+
+    // Fallback client-side
+    const sale = this.state.sales.find(s => s.id === saleId);
+    if (!sale) return { success: false, error: 'Venta no encontrada' };
+    if (sale.status === 'annulled') return { success: false, error: 'La venta ya se encuentra anulada' };
+
+    sale.status = 'annulled';
+
+    sale.items.forEach(item => {
+      const prod = this.state.products.find(p => p.id === item.productId);
+      if (prod) {
+        prod.stock += item.quantity;
+      }
+    });
+
+    if (sale.paymentMethod === 'current_account' && sale.customerId) {
+      const customer = this.state.customers.find(c => c.id === sale.customerId);
+      if (customer) {
+        customer.currentBalance = Math.max(0, customer.currentBalance - sale.totalAmount);
+        this.state.customerTransactions.unshift({
+          id: `tx-annul-${Date.now()}`,
+          customerId: customer.id,
+          type: 'adjustment',
+          amount: sale.totalAmount,
+          balanceAfter: customer.currentBalance,
+          date: new Date().toISOString(),
+          description: `ANULACIÓN Venta ${sale.invoiceNumber}`,
+          saleId: sale.id
+        });
+      }
+    }
+
+    this.notify();
+    return { success: true };
   }
 
   public static async registerCustomerPayment(params: {

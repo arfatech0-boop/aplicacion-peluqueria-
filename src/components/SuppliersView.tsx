@@ -92,9 +92,6 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({ appState }) => {
       return;
     }
 
-    const confirmMsg = `¿Confirma aplicar un aumento global del +${increasePercentage}% a ${previewItems.length} productos? Esta acción actualizará los precios en todo el sistema.`;
-    if (!window.confirm(confirmMsg)) return;
-
     const res = await DataService.applyGlobalPriceIncrease({
       supplierId: selectedSupplierId,
       categoryFilter: selectedCategoryFilter,

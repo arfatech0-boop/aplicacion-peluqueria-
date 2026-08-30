@@ -19,7 +19,8 @@ import {
   ChevronRight,
   Settings,
   Building2,
-  BookOpen
+  BookOpen,
+  LogOut
 } from 'lucide-react';
 import { AppState, SystemUser } from '../types';
 import { DataService } from '../services/dataService';
@@ -45,6 +46,7 @@ interface NavbarProps {
   onOpenSettings?: () => void;
   onOpenCardRates?: () => void;
   onOpenUserManagement?: () => void;
+  onLogout?: () => void;
   quickSearchText?: string;
   setQuickSearchText?: (text: string) => void;
 }
@@ -56,7 +58,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   onOpenSettings,
   onOpenCardRates,
-  onOpenUserManagement
+  onOpenUserManagement,
+  onLogout
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const lowStockCount = appState.products.filter(p => p.stock <= p.minStock).length;
@@ -179,6 +182,21 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             );
           })}
+
+          {onLogout && (
+            <button
+              onClick={() => {
+                onLogout();
+                setMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-bold bg-red-950/60 text-red-300 border border-red-800/50 mt-2"
+            >
+              <div className="flex items-center space-x-2">
+                <LogOut className="w-4 h-4 text-red-400" />
+                <span>Cerrar Sesión / Salir</span>
+              </div>
+            </button>
+          )}
         </div>
       )}
 

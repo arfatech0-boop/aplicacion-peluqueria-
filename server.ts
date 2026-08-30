@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import bcrypt from 'bcryptjs';
 import { createServer as createViteServer } from 'vite';
 import { initialAppData } from './src/data/mockData';
 import { AppState, Product, Supplier, Customer, Sale, CustomerWithdrawal, Cheque, CashRegister, SystemUser } from './src/types';
@@ -79,47 +80,38 @@ app.get('/api/events', (req, res) => {
 // Ensure storeInfo & users defaults
 appState.storeInfo = { ...initialAppData.storeInfo, ...appState.storeInfo };
 
-if (!appState.stores || appState.stores.length === 0) {
-  appState.stores = [
-    {
-      id: 'store-demo-a',
-      name: 'Comercio Demo A - Ferretería Central',
-      cuit: '20-12345678-9',
-      businessType: 'Ferretería / Corralón' as any,
-      address: 'Av. Corrientes 1234, CABA',
-      phone: '11 4444-5555',
-      email: 'contacto@ferreteriacentral.com',
-      active: true,
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 'store-demo-b',
-      name: 'Comercio Demo B - Almacén Don Pedro',
-      cuit: '30-98765432-1',
-      businessType: 'Supermercado / Almacén' as any,
-      address: 'Calle San Martín 456, Rosario',
-      phone: '341 555-6666',
-      email: 'ventas@almacendonpedro.com',
-      active: true,
-      createdAt: new Date().toISOString()
-    }
-  ];
-}
+appState.stores = [
+  {
+    id: 'store-demo-a',
+    name: appState.storeInfo?.name || 'Comercio Principal',
+    cuit: appState.storeInfo?.cuit || '20-12345678-9',
+    businessType: (appState.storeInfo?.businessType || 'Comercio General / Multirrubro') as any,
+    address: appState.storeInfo?.address || '',
+    phone: appState.storeInfo?.phone || '',
+    email: appState.storeInfo?.email || '',
+    active: true,
+    createdAt: new Date().toISOString()
+  }
+];
 
 if (!appState.users || appState.users.length === 0) {
   appState.users = [
-    ...initialAppData.users,
-    {
-      id: 'usr-demo-b',
-      storeId: 'store-demo-b',
-      username: 'donpedro',
-      password: '123456',
-      name: 'Don Pedro',
-      role: 'admin',
-      active: true,
-      createdAt: new Date().toISOString()
-    }
+    ...initialAppData.users
   ];
+}
+
+// Helper to sanitize users array (strip passwords from API responses)
+function sanitizeUsers(users: SystemUser[]): Omit<SystemUser, 'password'>[] {
+  return users.map(({ password: _, ...rest }) => rest);
+}
+
+// Helper to verify or migrate password
+function verifyPassword(plainText: string, storedHashOrPlain: string): boolean {
+  if (storedHashOrPlain.startsWith('$2a$') || storedHashOrPlain.startsWith('$2b$')) {
+    return bcrypt.compareSync(plainText, storedHashOrPlain);
+  }
+  // Legacy plain-text fallback
+  return plainText === storedHashOrPlain;
 }
 
 // POST Login Endpoint
@@ -134,8 +126,14 @@ app.post('/api/login', (req, res) => {
     return res.status(401).json({ success: false, error: 'Usuario no encontrado' });
   }
 
-  if (user.password !== password) {
+  if (!verifyPassword(password, user.password)) {
     return res.status(401).json({ success: false, error: 'Contraseña incorrecta' });
+  }
+
+  // Auto-migrate legacy plain text password to bcrypt hash on successful login
+  if (!user.password.startsWith('$2a$') && !user.password.startsWith('$2b$')) {
+    user.password = bcrypt.hashSync(password, 10);
+    saveState();
   }
 
   if (!user.active) {
@@ -144,9 +142,10 @@ app.post('/api/login', (req, res) => {
 
   user.lastLogin = new Date().toISOString();
   saveState();
-  broadcastUpdate('USERS_UPDATED', appState.users);
+  broadcastUpdate('USERS_UPDATED', sanitizeUsers(appState.users));
 
-  return res.json({ success: true, user });
+  const { password: _, ...userSafe } = user;
+  return res.json({ success: true, user: userSafe });
 });
 
 // POST Save / Update User
@@ -163,6 +162,11 @@ app.post('/api/users', (req, res) => {
     return res.status(400).json({ success: false, error: 'El nombre de usuario ya existe en el sistema' });
   }
 
+  // Ensure password is hashed with bcrypt
+  if (!user.password.startsWith('$2a$') && !user.password.startsWith('$2b$')) {
+    user.password = bcrypt.hashSync(user.password, 10);
+  }
+
   if (existingIndex >= 0) {
     appState.users[existingIndex] = user;
   } else {
@@ -170,8 +174,8 @@ app.post('/api/users', (req, res) => {
   }
 
   saveState();
-  broadcastUpdate('USERS_UPDATED', appState.users);
-  return res.json({ success: true, data: appState.users });
+  broadcastUpdate('USERS_UPDATED', sanitizeUsers(appState.users));
+  return res.json({ success: true, data: sanitizeUsers(appState.users) });
 });
 
 // DELETE User
@@ -182,8 +186,8 @@ app.delete('/api/users/:id', (req, res) => {
   }
   appState.users = appState.users.filter(u => u.id !== id);
   saveState();
-  broadcastUpdate('USERS_UPDATED', appState.users);
-  return res.json({ success: true, data: appState.users });
+  broadcastUpdate('USERS_UPDATED', sanitizeUsers(appState.users));
+  return res.json({ success: true, data: sanitizeUsers(appState.users) });
 });
 
 // GET full state
@@ -211,6 +215,47 @@ app.post('/api/sync', (req, res) => {
     return res.json({ success: true, data: appState });
   }
   res.status(400).json({ success: false, error: 'Invalid data payload' });
+});
+
+// GET products (Paginated & Searched)
+app.get('/api/products', (req, res) => {
+  const search = ((req.query.search as string) || '').toLowerCase().trim();
+  const category = (req.query.category as string) || 'ALL';
+  const supplierId = (req.query.supplierId as string) || 'ALL';
+  const page = parseInt(req.query.page as string, 10) || 1;
+  const limit = parseInt(req.query.limit as string, 10) || 50;
+
+  let filtered = appState.products;
+
+  if (category !== 'ALL') {
+    filtered = filtered.filter(p => p.category === category);
+  }
+
+  if (supplierId !== 'ALL') {
+    filtered = filtered.filter(p => p.supplierId === supplierId);
+  }
+
+  if (search) {
+    filtered = filtered.filter(p => 
+      p.name.toLowerCase().includes(search) || 
+      p.code.toLowerCase().includes(search) ||
+      (p.brand && p.brand.toLowerCase().includes(search))
+    );
+  }
+
+  const total = filtered.length;
+  const totalPages = Math.ceil(total / limit) || 1;
+  const startIndex = (page - 1) * limit;
+  const paginatedData = filtered.slice(startIndex, startIndex + limit);
+
+  return res.json({
+    success: true,
+    data: paginatedData,
+    total,
+    page,
+    totalPages,
+    limit
+  });
 });
 
 // POST add/update product
@@ -308,6 +353,11 @@ app.post('/api/suppliers/increase-prices', (req, res) => {
 
   appState.priceIncreaseLogs.unshift(logEntry);
   saveState();
+
+  // Persist to Supabase Cloud Database asynchronously
+  SupabaseService.saveProducts(appState.products);
+  SupabaseService.savePriceIncreaseLog(logEntry);
+
   broadcastUpdate('DATA_UPDATED', appState);
 
   res.json({ success: true, affectedCount: count, data: appState });
@@ -422,7 +472,80 @@ app.post('/api/sales', (req, res) => {
   }
 
   saveState();
+  SupabaseService.saveSale(sale);
+  SupabaseService.saveProducts(appState.products);
   broadcastUpdate('SALE_COMPLETED', { sale, state: appState });
+
+  res.json({ success: true, sale, data: appState });
+});
+
+// POST Annul / Cancel Sale (Nota de Crédito)
+app.post('/api/sales/:id/annul', (req, res) => {
+  const saleId = req.params.id;
+  const sale = appState.sales.find(s => s.id === saleId);
+
+  if (!sale) {
+    return res.status(404).json({ success: false, error: 'Venta no encontrada' });
+  }
+
+  if (sale.status === 'annulled') {
+    return res.status(400).json({ success: false, error: 'La venta ya se encuentra anulada' });
+  }
+
+  // 1. Mark status as annulled
+  sale.status = 'annulled';
+
+  // 2. Restore Stock
+  sale.items.forEach(item => {
+    const product = appState.products.find(p => p.id === item.productId);
+    if (product) {
+      product.stock += item.quantity;
+      product.updatedAt = new Date().toISOString();
+    }
+  });
+
+  // 3. Reverse financial impact
+  if (sale.paymentMethod === 'current_account' && sale.customerId) {
+    const customer = appState.customers.find(c => c.id === sale.customerId);
+    if (customer) {
+      customer.currentBalance = Math.max(0, customer.currentBalance - sale.totalAmount);
+      customer.updatedAt = new Date().toISOString();
+
+      appState.customerTransactions.unshift({
+        id: `tx-annul-${Date.now()}`,
+        customerId: customer.id,
+        type: 'adjustment',
+        amount: sale.totalAmount,
+        balanceAfter: customer.currentBalance,
+        date: new Date().toISOString(),
+        description: `ANULACIÓN / Nota de Crédito Venta ${sale.invoiceNumber}`,
+        saleId: sale.id
+      });
+      SupabaseService.saveCustomer(customer);
+    }
+  }
+
+  if (sale.paymentMethod === 'cash') {
+    const openCash = appState.cashRegisters.find(c => c.status === 'open');
+    if (openCash) {
+      openCash.cashSales = Math.max(0, openCash.cashSales - sale.totalAmount);
+      openCash.expectedTotal = Math.max(0, openCash.expectedTotal - sale.totalAmount);
+      openCash.movements.unshift({
+        id: `mov-annul-${Date.now()}`,
+        type: 'out',
+        amount: sale.totalAmount,
+        description: `ANULACIÓN Venta ${sale.invoiceNumber}`,
+        category: 'annulment',
+        date: new Date().toISOString(),
+        paymentMethod: 'cash'
+      });
+    }
+  }
+
+  saveState();
+  SupabaseService.saveSale(sale);
+  SupabaseService.saveProducts(appState.products);
+  broadcastUpdate('SALE_ANNULLED', { saleId, state: appState });
 
   res.json({ success: true, sale, data: appState });
 });
@@ -489,6 +612,7 @@ app.post('/api/customers', (req, res) => {
     appState.customers.unshift(customer);
   }
   saveState();
+  SupabaseService.saveCustomer(customer);
   broadcastUpdate('CUSTOMERS_UPDATED', appState.customers);
   res.json({ success: true, customer, customers: appState.customers });
 });
@@ -498,6 +622,7 @@ app.delete('/api/customers/:id', (req, res) => {
   const { id } = req.params;
   appState.customers = appState.customers.filter(c => c.id !== id);
   saveState();
+  SupabaseService.deleteCustomer(id);
   broadcastUpdate('CUSTOMERS_UPDATED', appState.customers);
   res.json({ success: true, data: appState.customers });
 });

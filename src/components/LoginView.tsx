@@ -41,26 +41,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
   const [newAdminUsername, setNewAdminUsername] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
 
-  const stores = appState.stores || [
+  const stores = (appState.stores && appState.stores.length > 0) ? appState.stores.filter(s => s.id === 'store-demo-a') : [
     {
       id: 'store-demo-a',
-      name: 'Comercio Demo A - Ferretería Central',
-      cuit: '20-12345678-9',
-      businessType: 'Ferretería / Corralón' as any,
-      address: 'Av. Corrientes 1234, CABA',
-      phone: '11 4444-5555',
-      email: 'contacto@ferreteriacentral.com',
-      active: true,
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 'store-demo-b',
-      name: 'Comercio Demo B - Almacén Don Pedro',
-      cuit: '30-98765432-1',
-      businessType: 'Supermercado / Almacén' as any,
-      address: 'Calle San Martín 456, Rosario',
-      phone: '341 555-6666',
-      email: 'ventas@almacendonpedro.com',
+      name: appState.storeInfo.name || 'Comercio Principal',
+      cuit: appState.storeInfo.cuit || '20-12345678-9',
+      businessType: appState.storeInfo.businessType || 'Comercio General / Multirrubro' as any,
+      address: appState.storeInfo.address || '',
+      phone: appState.storeInfo.phone || '',
+      email: appState.storeInfo.email || '',
       active: true,
       createdAt: new Date().toISOString()
     }
@@ -234,27 +223,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
           )}
 
           <form onSubmit={handleSubmitLogin} className="space-y-4">
-            {/* Select Comercio */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between">
-                <span className="flex items-center space-x-1.5">
-                  <Building className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Seleccionar Tu Comercio</span>
-                </span>
-                <span className="text-[10px] text-indigo-400 font-normal">Base Aislada</span>
-              </label>
-              <select
-                value={selectedStoreId}
-                onChange={e => setSelectedStoreId(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-white text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-              >
-                {stores.map(st => (
-                  <option key={st.id} value={st.id} className="bg-slate-900 text-white">
-                    {st.name} ({st.businessType})
-                  </option>
-                ))}
-              </select>
-            </div>
 
             {/* Username Input */}
             <div>
