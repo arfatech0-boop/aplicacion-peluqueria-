@@ -492,8 +492,11 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
                     value={editingProduct.code || ''}
                     onChange={e => setEditingProduct({ ...editingProduct, code: e.target.value })}
                     className="w-full px-3 py-1.5 border rounded bg-slate-50 text-xs font-mono font-bold focus:ring-1 focus:ring-indigo-500"
-                    placeholder="Escanear o ingresar código..."
+                    placeholder="Ej: 101, 205 (PLU Balanza) o escanear EAN-13..."
                   />
+                  <p className="text-[10px] text-indigo-600 font-semibold mt-1 leading-tight">
+                    💡 Para balanzas o acceso rápido en carnicería: ingresa el PLU corto (ej: <strong className="font-mono font-black">101</strong>, <strong className="font-mono font-black">205</strong>).
+                  </p>
                   {editingProduct.code && (
                     <div className="mt-1.5 p-1 bg-slate-50 border rounded flex flex-col items-center justify-center">
                       <BarcodeRenderer value={editingProduct.code} width={1.2} height={26} fontSize={10} margin={2} />

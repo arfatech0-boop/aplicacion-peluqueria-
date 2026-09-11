@@ -434,7 +434,9 @@ app.post('/api/sales', (req, res) => {
     }
   } else {
     // Single Payment Method handling
-    if (sale.paymentMethod === 'current_account' && sale.customerId) {
+    const isCurrentAccount = sale.paymentMethod === 'current_account' || sale.invoiceType === 'REMITO';
+
+    if (isCurrentAccount && sale.customerId) {
       const customer = appState.customers.find(c => c.id === sale.customerId);
       if (customer) {
         customer.currentBalance += sale.totalAmount;
@@ -447,13 +449,11 @@ app.post('/api/sales', (req, res) => {
           amount: sale.totalAmount,
           balanceAfter: customer.currentBalance,
           date: sale.date,
-          description: `Venta ${sale.invoiceNumber} a Cuenta Corriente`,
+          description: `${sale.invoiceType === 'REMITO' ? 'Remito' : 'Venta'} ${sale.invoiceNumber} a Cuenta Corriente`,
           saleId: sale.id
         });
       }
-    }
-
-    if (sale.paymentMethod === 'cash') {
+    } else if (sale.paymentMethod === 'cash') {
       const openCash = appState.cashRegisters.find(c => c.status === 'open');
       if (openCash) {
         openCash.cashSales += sale.totalAmount;

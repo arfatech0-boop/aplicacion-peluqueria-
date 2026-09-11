@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Sale, StoreInfo, Customer, CustomerTransaction, CustomerWithdrawal, Product } from '../types';
+import { Sale, StoreInfo, Customer, CustomerTransaction, CustomerWithdrawal, Product, QuotationData } from '../types';
 
 export const generateSaleInvoicePDF = (sale: Sale, storeInfo: StoreInfo) => {
   const doc = new jsPDF();
@@ -761,6 +761,348 @@ export const generateMonthlyReportPDF = (
   });
 
   doc.save(`Reporte_Mensual_${monthLabel}_${year}.pdf`);
+};
+
+export const generateQuotationPDF = (quote: QuotationData, storeInfo: StoreInfo) => {
+  const doc = new jsPDF();
+  const dateStr = quote.date ? new Date(quote.date).toLocaleDateString('es-AR') : new Date().toLocaleDateString('es-AR');
+  const quoteNo = quote.quotationNumber || `${Math.floor(100000 + Math.random() * 900000)}`;
+
+  let startY = 14;
+
+  if (storeInfo.logoUrl) {
+    try {
+      doc.addImage(storeInfo.logoUrl, 'PNG', 14, 10, 26, 16);
+      startY = 28;
+    } catch (e) {
+      // Fallback
+    }
+  }
+
+  // Left Column - Store Header
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.text(storeInfo.name || 'COMERCIAL CENTRAL PRO', 14, startY);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Dir: ${storeInfo.address || 'Av. San Martín 1450, Ciudad'}`, 14, startY + 5);
+  doc.text(`Teléfono: ${storeInfo.phone || '011 4589-2310'}`, 14, startY + 9);
+  doc.text(`Email: ${storeInfo.email || 'ventas@comercialcentral.com'}`, 14, startY + 13);
+  doc.text(`Condición: ${storeInfo.taxCondition || 'Responsable Inscripto'}`, 14, startY + 17);
+
+  // Center Box - Letter X
+  doc.setLineWidth(0.6);
+  doc.setDrawColor(15, 23, 42);
+  doc.rect(94, 10, 24, 20);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('X', 106, 21, { align: 'center' });
+  doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Documento no', 106, 25, { align: 'center' });
+  doc.text('válido como factura', 106, 28, { align: 'center' });
+
+  // Right Column - Cotizacion Title & Number
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text('Cotizacion', 196, 18, { align: 'right' });
+
+  doc.setFontSize(11);
+  doc.text(`N° ${quoteNo}`, 196, 25, { align: 'right' });
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Fecha Comprobante: ${dateStr}`, 196, 31, { align: 'right' });
+
+  // Divider Line
+  doc.setLineWidth(0.8);
+  doc.setDrawColor(15, 23, 42);
+  doc.line(14, startY + 21, 196, startY + 21);
+
+  const clientBoxY = startY + 24;
+
+  // Customer & Seller Box
+  doc.setLineWidth(0.6);
+  doc.setDrawColor(15, 23, 42);
+  doc.rect(14, clientBoxY, 182, 14);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Cliente: ${(quote.customerName || 'CONSUMIDOR FINAL').toUpperCase()}`, 18, clientBoxY + 5);
+  doc.text(`Vendedor: ${quote.sellerName || 'Mostrador'}`, 145, clientBoxY + 5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Dirección: ${quote.customerAddress || 'A confirmar'}`, 18, clientBoxY + 10);
+
+  // Items Table
+  const tableData = quote.items.map(item => [
+    item.code || '-',
+    item.quantity.toFixed(2),
+    item.description,
+    `$ ${item.unitPrice.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    `${item.discountPercent || 0}%`,
+    `$ ${item.totalPrice.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  ]);
+
+  autoTable(doc, {
+    startY: clientBoxY + 18,
+    head: [['CÓDIGO', 'CANTIDAD', 'DESCRIPCIÓN', 'PRECIO UNIT', 'DESC.', 'PRECIO TOTAL']],
+    body: tableData,
+    headStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [15, 23, 42],
+      fontStyle: 'bold',
+      fontSize: 8,
+      lineWidth: 0
+    },
+    bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [15, 23, 42],
+      fontSize: 8,
+      cellPadding: 3,
+      lineWidth: 0
+    },
+    columnStyles: {
+      0: { cellWidth: 28 },
+      1: { cellWidth: 22, halign: 'center' },
+      2: { cellWidth: 68 },
+      3: { cellWidth: 25, halign: 'right' },
+      4: { cellWidth: 15, halign: 'center' },
+      5: { cellWidth: 24, halign: 'right' }
+    },
+    didDrawCell: (data) => {
+      if (data.section === 'head') {
+        doc.setLineWidth(0.6);
+        doc.setDrawColor(15, 23, 42);
+        // Draw top line of header
+        doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
+        // Draw bottom line of header
+        doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+        // Draw left vertical line of header
+        doc.line(data.cell.x, data.cell.y, data.cell.x, data.cell.y + data.cell.height);
+        // Draw right vertical line if last column
+        if (data.column.index === 5) {
+          doc.line(data.cell.x + data.cell.width, data.cell.y, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+        }
+      }
+    }
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY + 12;
+
+  // Right Totals Box
+  const totalsY = finalY;
+  doc.setLineWidth(0.6);
+  doc.setDrawColor(15, 23, 42);
+  doc.rect(130, totalsY, 66, 34);
+
+  const totalVal = quote.totalAmount;
+  const discountVal = quote.discount || 0;
+  const subtotalVal = quote.subtotal || (totalVal + discountVal);
+  const netSubtotalVal = Math.round(((totalVal - discountVal) / 1.21) * 100) / 100;
+  const vatVal = Math.round((totalVal - netSubtotalVal) * 100) / 100;
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(15, 23, 42);
+
+  doc.text('Subtotal', 134, totalsY + 6);
+  doc.text(`$ ${subtotalVal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 192, totalsY + 6, { align: 'right' });
+
+  doc.text('Descuento', 134, totalsY + 11);
+  doc.text(`$ ${discountVal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 192, totalsY + 11, { align: 'right' });
+
+  doc.text('SubTotal Neto', 134, totalsY + 16);
+  doc.text(`$ ${netSubtotalVal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 192, totalsY + 16, { align: 'right' });
+
+  doc.text('Iva (21%)', 134, totalsY + 21);
+  doc.text(`$ ${vatVal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 192, totalsY + 21, { align: 'right' });
+
+  doc.setLineWidth(0.8);
+  doc.line(130, totalsY + 24, 196, totalsY + 24);
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total Cotización:', 134, totalsY + 30);
+  doc.text(`$ ${totalVal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 192, totalsY + 30, { align: 'right' });
+
+  // Details / Footer Notes on Left
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Detalles:', 14, totalsY + 20);
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text(quote.notes || 'Los precios incluyen IVA. La validez de esta cotización es de 7 días.', 14, totalsY + 25);
+
+  // Signature Line on Right
+  doc.setLineWidth(0.8);
+  doc.setDrawColor(15, 23, 42);
+  doc.line(145, totalsY + 54, 190, totalsY + 54);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(15, 23, 42);
+  doc.text('Firma Autorizada', 167.5, totalsY + 58, { align: 'center' });
+
+  doc.save(`Cotizacion_${quoteNo}.pdf`);
+};
+
+export const generateDebtDetailPDF = (
+  customer: Customer,
+  items: { code: string; description: string; quantity: number; unitPrice: number; discount: number; total: number; remitoNumber: string }[],
+  storeInfo: StoreInfo
+) => {
+  const doc = new jsPDF();
+  const dateStr = new Date().toLocaleDateString('es-AR');
+
+  let startY = 14;
+
+  if (storeInfo.logoUrl) {
+    try {
+      doc.addImage(storeInfo.logoUrl, 'PNG', 14, 10, 26, 16);
+      startY = 28;
+    } catch (e) {
+      // Fallback
+    }
+  }
+
+  // Left Store Header
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.text(storeInfo.name || 'Comercial Central Pro', 14, startY);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Dir: ${storeInfo.address || 'Av. San Martín 1450, Ciudad'}`, 14, startY + 5);
+  doc.text(`Telefono: ${storeInfo.phone || '011 4589-2310'}`, 14, startY + 9);
+  doc.text(`Email: ${storeInfo.email || 'ventas@comercialcentral.com'}`, 14, startY + 13);
+
+  // Right Title & Date
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text('DETALLE DE DEUDA', 196, startY, { align: 'right' });
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Fecha ${dateStr}`, 196, startY + 6, { align: 'right' });
+
+  // Divider Line
+  const divY = startY + 16;
+  doc.setLineWidth(0.8);
+  doc.setDrawColor(15, 23, 42);
+  doc.line(14, divY, 196, divY);
+
+  // Customer Block
+  const clientY = divY + 6;
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  const custCodeName = `Cliente ${customer.id.replace(/^cust-/, '').padStart(8, '0')}-${customer.name.toUpperCase()}`;
+  doc.text(custCodeName, 14, clientY);
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Direccion ${customer.address || 'A confirmar'}`, 14, clientY + 5);
+  doc.text(`Localidad ${customer.notes || 'Local'}`, 14, clientY + 10);
+  doc.text(`Cuit ${customer.dniCuit || 'Sin registrar'}`, 14, clientY + 15);
+
+  // Divider under Customer Box
+  doc.setLineWidth(0.5);
+  doc.setDrawColor(15, 23, 42);
+  doc.line(14, clientY + 19, 196, clientY + 19);
+
+  // Items Table
+  const tableData = items.map(item => {
+    const cleanRemito = item.remitoNumber
+      ? item.remitoNumber.replace(/^FC-0001-0000/, '').replace(/^FC-0001-/, '').replace(/^FC-/, '')
+      : '-';
+
+    return [
+      item.code || '-',
+      item.description,
+      item.quantity.toFixed(2),
+      item.unitPrice.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      item.discount.toFixed(2),
+      item.total.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      cleanRemito
+    ];
+  });
+
+  const totalDebt = items.reduce((sum, i) => sum + i.total, 0);
+
+  autoTable(doc, {
+    startY: clientY + 22,
+    head: [['Cod. Art', 'Descripción', 'Cantidad', 'Pre. Unit./Iva', 'Descu.', 'Total', 'Remito']],
+    body: tableData,
+    headStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [15, 23, 42],
+      fontStyle: 'bold',
+      fontSize: 8,
+      lineWidth: 0
+    },
+    bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [15, 23, 42],
+      fontSize: 8,
+      cellPadding: 3,
+      lineWidth: 0
+    },
+    columnStyles: {
+      0: { cellWidth: 28 },
+      1: { cellWidth: 58 },
+      2: { cellWidth: 16, halign: 'right' },
+      3: { cellWidth: 22, halign: 'right' },
+      4: { cellWidth: 14, halign: 'right' },
+      5: { cellWidth: 22, halign: 'right' },
+      6: { cellWidth: 22, halign: 'center' }
+    },
+    didDrawCell: (data) => {
+      if (data.section === 'head') {
+        doc.setLineWidth(0.6);
+        doc.setDrawColor(15, 23, 42);
+        // Top line
+        doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
+        // Bottom line
+        doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+        // Left vertical line
+        doc.line(data.cell.x, data.cell.y, data.cell.x, data.cell.y + data.cell.height);
+        // Right vertical line if last column
+        if (data.column.index === 6) {
+          doc.line(data.cell.x + data.cell.width, data.cell.y, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+        }
+      }
+    }
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY + 15;
+
+  // Total Debt Line
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text('Total', 130, finalY);
+  doc.setFontSize(11);
+  doc.text(`$${totalDebt.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 196, finalY, { align: 'right' });
+
+  // Bottom Center Footer Note
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const footerY = Math.min(Math.max(finalY + 30, pageHeight - 25), pageHeight - 15);
+
+  doc.setFontSize(10.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text('LOS PRECIOS ESTAN SUJETOS A ACTUALIZACION', 105, footerY, { align: 'center' });
+
+  doc.save(`Detalle_Deuda_${customer.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
 };
 
 const formatPaymentMethod = (method: string) => {

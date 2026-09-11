@@ -26,7 +26,7 @@ import {
 import { AppState, Customer, CustomerTransaction, Sale, InvoiceType, PaymentMethod, TaxCondition, Cheque } from '../types';
 import { DataService } from '../services/dataService';
 import { exportCustomersExcel } from '../utils/excelExporter';
-import { generateCustomerAccountStatementPDF, generateSaleInvoicePDF, generateCustomerPaymentReceiptPDF } from '../utils/pdfGenerator';
+import { generateCustomerAccountStatementPDF, generateSaleInvoicePDF, generateCustomerPaymentReceiptPDF, generateDebtDetailPDF } from '../utils/pdfGenerator';
 
 interface CurrentAccountsViewProps {
   appState: AppState;
@@ -521,16 +521,74 @@ export const CurrentAccountsView: React.FC<CurrentAccountsViewProps> = ({ appSta
               <div>
                 <span className="text-slate-500">Saldo Deuda Actual:</span> <span className="font-extrabold text-red-600 text-sm">${selectedCustomer.currentBalance.toLocaleString('es-AR')}</span>
               </div>
-              <button
-                onClick={() => {
-                  const txs = appState.customerTransactions.filter(t => t.customerId === selectedCustomer.id);
-                  generateCustomerAccountStatementPDF(selectedCustomer, txs, appState.storeInfo);
-                }}
-                className="px-3.5 py-1.5 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-500 flex items-center space-x-1 shadow-xs"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Exportar Resumen PDF</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    const txs = appState.customerTransactions.filter(t => t.customerId === selectedCustomer.id);
+                    generateCustomerAccountStatementPDF(selectedCustomer, txs, appState.storeInfo);
+                  }}
+                  className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-500 flex items-center space-x-1 shadow-xs text-[11px]"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Resumen Cta Cte PDF</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    const custTxs = appState.customerTransactions.filter(t => t.customerId === selectedCustomer.id && (t.type === 'sale' || t.type === 'withdrawal_billing'));
+                    const itemsForDebt: { code: string; description: string; quantity: number; unitPrice: number; discount: number; total: number; remitoNumber: string }[] = [];
+
+                    custTxs.forEach(t => {
+                      const relSale = t.saleId ? appState.sales.find(s => s.id === t.saleId) : null;
+                      const relW = t.withdrawalId ? appState.withdrawals.find(w => w.id === t.withdrawalId) : null;
+
+                      if (relSale) {
+                        relSale.items.forEach(i => {
+                          itemsForDebt.push({
+                            code: i.code || '001',
+                            description: i.productName,
+                            quantity: i.quantity,
+                            unitPrice: i.unitPrice,
+                            discount: 0,
+                            total: i.subtotal,
+                            remitoNumber: relSale.invoiceNumber.replace(/^FC-/, '')
+                          });
+                        });
+                      } else if (relW) {
+                        relW.items.forEach(i => {
+                          itemsForDebt.push({
+                            code: i.productCode || '001',
+                            description: i.productName,
+                            quantity: i.quantity,
+                            unitPrice: i.unitPrice,
+                            discount: 0,
+                            total: i.totalPrice,
+                            remitoNumber: relW.withdrawalNumber
+                          });
+                        });
+                      }
+                    });
+
+                    if (itemsForDebt.length === 0) {
+                      itemsForDebt.push({
+                        code: '001',
+                        description: 'Saldo Deuda Pendiente en Cuenta Corriente',
+                        quantity: 1,
+                        unitPrice: selectedCustomer.currentBalance,
+                        discount: 0,
+                        total: selectedCustomer.currentBalance,
+                        remitoNumber: 'CC-01'
+                      });
+                    }
+
+                    generateDebtDetailPDF(selectedCustomer, itemsForDebt, appState.storeInfo);
+                  }}
+                  className="px-3 py-1.5 bg-slate-900 text-white rounded-lg font-bold hover:bg-slate-800 flex items-center space-x-1 shadow-xs text-[11px]"
+                >
+                  <FileText className="w-3.5 h-3.5 text-amber-400" />
+                  <span>📋 Detalle de Deuda (Remitos)</span>
+                </button>
+              </div>
             </div>
 
             <div className="max-h-80 overflow-y-auto border rounded-xl shadow-xs">

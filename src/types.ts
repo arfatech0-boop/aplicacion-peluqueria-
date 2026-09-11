@@ -218,6 +218,7 @@ export interface StoreInfo {
   address: string;
   phone: string;
   email: string;
+  logoUrl?: string; // Base64 or Image URL for store logo
   invoicePrefix: string;
   currencySymbol: string;
   defaultTaxRate: number;
@@ -230,6 +231,31 @@ export interface StoreInfo {
   defaultRespInscriptoInvoiceType?: InvoiceType;
   afipPointOfSale?: string;
   cardInterestPlans?: CardInterestPlan[];
+}
+
+export interface QuotationItem {
+  code: string;
+  quantity: number;
+  description: string;
+  unitPrice: number;
+  discountPercent?: number;
+  totalPrice: number;
+}
+
+export interface QuotationData {
+  quotationNumber: string;
+  date: string;
+  customerName?: string;
+  customerAddress?: string;
+  customerCuitDni?: string;
+  sellerName?: string;
+  items: QuotationItem[];
+  subtotal: number;
+  discount: number;
+  vatAmount?: number;
+  totalAmount: number;
+  validityDays?: number;
+  notes?: string;
 }
 
 export interface StoreAccount {

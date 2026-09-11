@@ -127,6 +127,7 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
     address: storeInfo.address || '',
     phone: storeInfo.phone || '',
     email: storeInfo.email || '',
+    logoUrl: storeInfo.logoUrl || '',
     invoicePrefix: storeInfo.invoicePrefix || '0001',
     currencySymbol: storeInfo.currencySymbol || '$',
     defaultTaxRate: storeInfo.defaultTaxRate ?? 21,
@@ -157,6 +158,7 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
         address: storeInfo.address || '',
         phone: storeInfo.phone || '',
         email: storeInfo.email || '',
+        logoUrl: storeInfo.logoUrl || '',
         invoicePrefix: storeInfo.invoicePrefix || '0001',
         currencySymbol: storeInfo.currencySymbol || '$',
         defaultTaxRate: storeInfo.defaultTaxRate ?? 21,
@@ -214,6 +216,21 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
     }));
   };
 
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('La imagen del logo es demasiado grande (máximo 2MB).');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, logoUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     await DataService.updateStoreInfo(formData);
@@ -231,21 +248,17 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-200 my-auto">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between border-b border-slate-800">
+        <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-indigo-600/30 rounded-lg border border-indigo-500/40 text-indigo-400">
+            <div className="p-2 bg-indigo-600/30 rounded-xl border border-indigo-500/30 text-indigo-400">
               <Store className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="font-extrabold text-lg sm:text-xl text-white tracking-tight">
-                Estandarización y Configuración del Comercio
-              </h2>
-              <p className="text-slate-400 text-xs">
-                Adapte el sistema a cualquier tipo de negocio (Supermercados, Ferreterías, Indumentaria, Servicios, etc.)
-              </p>
+              <h2 className="text-lg font-black tracking-tight">Configuración del Comercio</h2>
+              <p className="text-xs text-slate-400">Datos fiscales, logotipo de facturación, rubro y categorías</p>
             </div>
           </div>
           <button
@@ -303,6 +316,55 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
           {/* TAB 1: DATOS DEL NEGOCIO */}
           {activeTab === 'profile' && (
             <div className="space-y-4">
+              {/* Logo Upload Section */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                <label className="block text-xs font-bold text-slate-800 uppercase flex items-center justify-between">
+                  <span>🖼️ Logotipo del Comercio (Para Comprobantes, Cotizaciones y Remitos)</span>
+                  {formData.logoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, logoUrl: '' }))}
+                      className="text-[11px] text-red-600 hover:underline font-bold"
+                    >
+                      Quitar Logo
+                    </button>
+                  )}
+                </label>
+
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  {formData.logoUrl ? (
+                    <div className="w-24 h-20 border border-slate-300 rounded-lg p-1 bg-white flex items-center justify-center shadow-xs flex-shrink-0">
+                      <img src={formData.logoUrl} alt="Logo comercio" className="max-h-full max-w-full object-contain" />
+                    </div>
+                  ) : (
+                    <div className="w-24 h-20 border-2 border-dashed border-slate-300 rounded-lg bg-slate-100/60 flex items-center justify-center text-slate-400 text-xs font-semibold text-center flex-shrink-0 p-2">
+                      Sin Logo
+                    </div>
+                  )}
+
+                  <div className="space-y-2 flex-1 w-full">
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoFileUpload}
+                        className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-extrabold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+                      />
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      O pega una URL de imagen:
+                    </div>
+                    <input
+                      type="text"
+                      value={formData.logoUrl || ''}
+                      onChange={e => setFormData({ ...formData, logoUrl: e.target.value })}
+                      placeholder="https://midominio.com/logo.png"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">

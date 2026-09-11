@@ -17,7 +17,7 @@ import {
 import { AppState, CustomerWithdrawal, WithdrawalItem, Customer } from '../types';
 import { DataService } from '../services/dataService';
 import { exportWithdrawalsExcel } from '../utils/excelExporter';
-import { generateWithdrawalReceiptPDF } from '../utils/pdfGenerator';
+import { generateWithdrawalReceiptPDF, generateDebtDetailPDF } from '../utils/pdfGenerator';
 
 interface WithdrawalsViewProps {
   appState: AppState;
@@ -317,7 +317,37 @@ export const WithdrawalsView: React.FC<WithdrawalsViewProps> = ({ appState }) =>
                     className="px-3 py-1.5 rounded bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-600 font-bold text-xs flex items-center space-x-1 transition-colors"
                   >
                     <FileText className="w-4 h-4" />
-                    <span>Imprimir Remito PDF</span>
+                    <span>Remito PDF</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const cust = appState.customers.find(c => c.id === withdrawal.customerId) || {
+                        id: withdrawal.customerId,
+                        name: withdrawal.customerName,
+                        dniCuit: 'Sin registrar',
+                        phone: '',
+                        email: '',
+                        address: 'A confirmar',
+                        creditLimit: 0,
+                        currentBalance: withdrawal.totalAmount,
+                        updatedAt: new Date().toISOString()
+                      };
+                      const itemsForDebt = withdrawal.items.map(i => ({
+                        code: i.productCode || '001',
+                        description: i.productName,
+                        quantity: i.quantity,
+                        unitPrice: i.unitPrice,
+                        discount: 0,
+                        total: i.totalPrice,
+                        remitoNumber: withdrawal.withdrawalNumber
+                      }));
+                      generateDebtDetailPDF(cust, itemsForDebt, appState.storeInfo);
+                    }}
+                    className="px-3 py-1.5 rounded bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center space-x-1 transition-colors"
+                  >
+                    <FileText className="w-4 h-4 text-amber-400" />
+                    <span>Detalle Deuda PDF</span>
                   </button>
                 </div>
               </div>

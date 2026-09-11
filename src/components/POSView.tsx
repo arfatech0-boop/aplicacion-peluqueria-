@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { AppState, Product, Customer, PaymentMethod, SaleItem, Sale, InvoiceType, TaxCondition } from '../types';
 import { DataService } from '../services/dataService';
-import { generateSaleInvoicePDF, generateThermalTicketPDF, printThermalTicketDirect } from '../utils/pdfGenerator';
+import { generateSaleInvoicePDF, generateThermalTicketPDF, printThermalTicketDirect, generateQuotationPDF } from '../utils/pdfGenerator';
 
 interface POSViewProps {
   appState: AppState;
@@ -143,13 +143,18 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
     }
   }, [selectedIndex, filteredProducts.length]);
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, customQty?: number, customSubtotal?: number) => {
     setCart(prevCart => {
       const existing = prevCart.find(item => item.productId === product.id);
+      const qtyToAdd = customQty !== undefined ? customQty : 1;
+      const subtotalToAdd = customSubtotal !== undefined ? customSubtotal : (qtyToAdd * product.salePrice);
+
       if (existing) {
+        const newQty = Math.round((existing.quantity + qtyToAdd) * 1000) / 1000;
+        const newSubtotal = Math.round((existing.subtotal + subtotalToAdd) * 100) / 100;
         return prevCart.map(item =>
           item.productId === product.id
-            ? { ...item, quantity: item.quantity + 1, subtotal: (item.quantity + 1) * item.unitPrice }
+            ? { ...item, quantity: newQty, subtotal: newSubtotal }
             : item
         );
       } else {
@@ -159,10 +164,10 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
             productId: product.id,
             code: product.code,
             productName: product.name,
-            quantity: 1,
+            quantity: Math.round(qtyToAdd * 1000) / 1000,
             unitPrice: product.salePrice,
             costPrice: product.costPrice,
-            subtotal: product.salePrice
+            subtotal: Math.round(subtotalToAdd * 100) / 100
           }
         ];
       }
@@ -183,7 +188,7 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
       e.preventDefault();
       const trimmedQuery = searchQuery.trim().toLowerCase();
 
-      // First check for EXACT barcode / code match in all products
+      // 1. First check for EXACT barcode / code match in all products
       const exactMatch = appState.products.find(
         p => p.code.toLowerCase() === trimmedQuery
       );
@@ -200,7 +205,38 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
         return;
       }
 
-      // Otherwise add selected product from filtered list
+      // 2. Balanza / Scale EAN-13 Barcode parsing (e.g. 2000101137754)
+      if (trimmedQuery.length === 13 && /^(20|21|22|28)/.test(trimmedQuery)) {
+        const pluPart = trimmedQuery.substring(2, 7); // e.g. "00101"
+        const pluNumeric = parseInt(pluPart, 10).toString(); // e.g. "101"
+        const valuePart = parseInt(trimmedQuery.substring(7, 12), 10); // e.g. 13775
+
+        const scaleProduct = appState.products.find(p => {
+          const c = p.code.toLowerCase();
+          return c === pluPart || c === pluNumeric || c === `0${pluNumeric}` || c === `00${pluNumeric}`;
+        });
+
+        if (scaleProduct) {
+          let totalCalculated = valuePart / 100;
+          if (scaleProduct.salePrice > 0 && totalCalculated < (scaleProduct.salePrice / 10)) {
+            // Scale configured in integer pesos
+            totalCalculated = valuePart;
+          }
+
+          let calculatedQty = 1;
+          if (scaleProduct.salePrice > 0) {
+            calculatedQty = Math.round((totalCalculated / scaleProduct.salePrice) * 1000) / 1000;
+          }
+
+          addToCart(scaleProduct, calculatedQty, totalCalculated);
+          setRecentlyAddedId(scaleProduct.id);
+          setTimeout(() => setRecentlyAddedId(null), 800);
+          setSearchQuery('');
+          return;
+        }
+      }
+
+      // 3. Otherwise add selected product from filtered list
       if (filteredProducts.length > 0) {
         const targetProduct = filteredProducts[selectedIndex];
         if (targetProduct && targetProduct.stock > 0) {
@@ -257,6 +293,33 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
     ? amountPaidCash - totalAmount
     : 0;
 
+  const handleEmitQuotation = () => {
+    if (cart.length === 0) return;
+
+    const quoteItems = cart.map(item => ({
+      code: item.code,
+      quantity: item.quantity,
+      description: item.productName,
+      unitPrice: item.unitPrice,
+      discountPercent: 0,
+      totalPrice: item.subtotal
+    }));
+
+    generateQuotationPDF({
+      quotationNumber: `${Math.floor(100000 + Math.random() * 900000)}`,
+      date: new Date().toISOString(),
+      customerName: selectedCustomer?.name || 'Consumidor Final',
+      customerAddress: selectedCustomer?.address || 'A confirmar',
+      customerCuitDni: selectedCustomer?.dniCuit || '',
+      sellerName: 'Mostrador',
+      items: quoteItems,
+      subtotal: cartSubtotal,
+      discount: discountAmount,
+      totalAmount,
+      notes: saleNotes || 'Los precios incluyen IVA. La validez de esta cotización es de 7 días.'
+    }, appState.storeInfo);
+  };
+
   const closeModalSafely = () => {
     // Require at least 600ms to have passed since modal opened to prevent double-click / click-through dismissal
     if (Date.now() - modalOpenedTimeRef.current < 600) {
@@ -295,8 +358,12 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
       ].filter(p => p.amount > 0);
     }
 
-    if (paymentMethod === 'current_account' && !selectedCustomer) {
-      alert('Para vender a Cuenta Corriente debe seleccionar un cliente registrado.');
+    const effectivePaymentMethod = (selectedInvoiceType === 'REMITO' && paymentMethod !== 'mixed')
+      ? 'current_account'
+      : paymentMethod;
+
+    if ((effectivePaymentMethod === 'current_account' || selectedInvoiceType === 'REMITO') && !selectedCustomer) {
+      alert('Para emitir un Remito o Venta a Cuenta Corriente debe seleccionar obligatoriamente un cliente registrado.');
       return;
     }
 
@@ -348,7 +415,7 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
       surcharge: cardSurchargeVal,
       cardBankName: paymentMethod === 'card' ? selectedBankName : undefined,
       totalAmount,
-      paymentMethod,
+      paymentMethod: effectivePaymentMethod,
       paymentsBreakdown,
       notes: saleNotes,
       status: 'completed',
@@ -717,6 +784,9 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
                     onClick={() => {
                       setSelectedInvoiceType(item.id as InvoiceType);
                       setIsManualInvoiceType(true);
+                      if (item.id === 'REMITO') {
+                        setPaymentMethod('current_account');
+                      }
                     }}
                     className={`py-1.5 px-1 rounded-xl border text-center font-semibold transition-all ${
                       selectedInvoiceType === item.id
@@ -1044,20 +1114,36 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
               )}
             </div>
 
-            {/* Complete Sale Button */}
-            <button
-              type="button"
-              disabled={cart.length === 0}
-              onClick={handleCompleteSale}
-              className={`w-full py-3.5 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg transition-all flex items-center justify-center space-x-2 ${
-                cart.length > 0
-                  ? 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-emerald-600/30 active:scale-[0.99]'
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-              }`}
-            >
-              <CheckCircle className="w-5 h-5" />
-              <span>FINALIZAR VENTA Y EMITIR COMPROBANTE</span>
-            </button>
+            {/* Action Buttons: Emit Quote or Complete Sale */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                disabled={cart.length === 0}
+                onClick={handleEmitQuotation}
+                className={`w-full py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all flex items-center justify-center space-x-2 border ${
+                  cart.length > 0
+                    ? 'bg-slate-900 hover:bg-slate-800 text-white border-slate-700 active:scale-[0.99]'
+                    : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                }`}
+              >
+                <FileText className="w-4 h-4 text-indigo-400" />
+                <span>📋 EMITIR PRESUPUESTO / COTIZACIÓN (A4)</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={cart.length === 0}
+                onClick={handleCompleteSale}
+                className={`w-full py-3.5 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg transition-all flex items-center justify-center space-x-2 ${
+                  cart.length > 0
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-emerald-600/30 active:scale-[0.99]'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <CheckCircle className="w-5 h-5" />
+                <span>FINALIZAR VENTA Y EMITIR COMPROBANTE</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

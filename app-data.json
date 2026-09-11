@@ -3,7 +3,7 @@
     "name": "Comercial Central Pro",
     "cuit": "30-71234567-8",
     "taxCondition": "Responsable Inscripto",
-    "businessType": "Comercio General / Multirrubro",
+    "businessType": "Carnicería / Fiambrería & Granja",
     "address": "Av. San Martín 1450, Ciudad",
     "phone": "011 4589-2310",
     "email": "ventas@comercialcentral.com",
@@ -13,14 +13,10 @@
     "cashDiscountPercent": 5,
     "cardSurchargePercent": 10,
     "receiptHeaderMessage": "¡Gracias por su compra! Conserve este comprobante.",
-    "customCategories": [
-      "Bazar & Hogar",
-      "Electrónica",
-      "Regalería",
-      "Librería",
-      "Kiosco",
-      "Bebidas"
-    ],
+    "defaultCounterInvoiceType": "FACTURA_B",
+    "defaultCurrentAccountInvoiceType": "REMITO",
+    "defaultRespInscriptoInvoiceType": "FACTURA_A",
+    "afipPointOfSale": "0001",
     "cardInterestPlans": [
       {
         "id": "p1",
@@ -59,10 +55,16 @@
         "surchargePercent": 42
       }
     ],
-    "defaultCounterInvoiceType": "FACTURA_B",
-    "defaultCurrentAccountInvoiceType": "REMITO",
-    "defaultRespInscriptoInvoiceType": "FACTURA_A",
-    "afipPointOfSale": "0001"
+    "customCategories": [
+      "Cortes Vacunos",
+      "Carnes de Cerdo",
+      "Aves & Granja",
+      "Fiambres & Fiambrería",
+      "Quesos x Kg",
+      "Embutidos & Achuras",
+      "Preparados & Milanesas"
+    ],
+    "logoUrl": ""
   },
   "users": [
     {
@@ -107,106 +109,94 @@
   ],
   "products": [
     {
-      "id": "prod-gen-1",
-      "code": "779888999001",
-      "name": "Termo de Acero Inoxidable 1 Litro",
-      "category": "Bazar & Hogar",
+      "id": "prod-car-1",
+      "code": "779600100001",
+      "name": "Asado de Tira Especial x Kg",
+      "category": "Cortes Vacunos",
       "supplierId": "sup-1",
-      "costPrice": 12500,
-      "salePrice": 22000,
-      "stock": 16,
-      "minStock": 5,
-      "unit": "un",
-      "size": "",
-      "color": "",
-      "brand": "Stanley / Lumilagro",
-      "description": "Termo de doble pared con pico cebador cebado continuo 24hs frío/calor",
-      "updatedAt": "2026-08-30T21:53:43.908Z"
+      "costPrice": 6200,
+      "salePrice": 9400,
+      "stock": 45,
+      "minStock": 10,
+      "unit": "kg",
+      "brand": "Frigorífico Central",
+      "description": "Corte de asado vacuno novillito de primera calidad",
+      "updatedAt": "2026-09-10T23:45:38.431Z"
     },
     {
-      "id": "prod-gen-2",
-      "code": "779888999002",
-      "name": "Auriculares Inalámbricos Bluetooth TWS",
-      "category": "Electrónica",
+      "id": "prod-car-2",
+      "code": "779600100002",
+      "name": "Nalgas para Milanesas Feteada x Kg",
+      "category": "Cortes Vacunos",
       "supplierId": "sup-1",
-      "costPrice": 8900,
-      "salePrice": 16500,
-      "stock": 12,
-      "minStock": 6,
-      "unit": "un",
-      "size": "",
-      "color": "",
-      "brand": "Xiaomi / TWS",
-      "description": "Auriculares estéreo con estuche de carga USB-C",
-      "updatedAt": "2026-08-30T21:54:17.278Z"
+      "costPrice": 7100,
+      "salePrice": 10800,
+      "stock": 30,
+      "minStock": 8,
+      "unit": "kg",
+      "brand": "Frigorífico Central",
+      "description": "Nalga tierna feteada fina especial para milanesas",
+      "updatedAt": "2026-09-10T23:45:38.431Z"
     },
     {
-      "id": "prod-gen-3",
-      "code": "779888999003",
-      "name": "Caja de Chocolates Surtidos 250g",
-      "category": "Regalería",
+      "id": "prod-car-3",
+      "code": "779600100003",
+      "name": "Pechuga de Pollo Fresca x Kg",
+      "category": "Aves & Granja",
       "supplierId": "sup-1",
       "costPrice": 4200,
-      "salePrice": 7800,
-      "stock": 28,
-      "minStock": 10,
-      "unit": "un",
-      "size": "",
-      "color": "",
-      "brand": "Ferrero / Bon o Bon",
-      "description": "Bombones y chocolates surtidos en caja para regalo",
-      "updatedAt": "2026-08-30T21:54:17.278Z"
+      "salePrice": 6500,
+      "stock": 25,
+      "minStock": 6,
+      "unit": "kg",
+      "brand": "Granja San Sebastián",
+      "description": "Pechugas deshuesadas limpias de pollo de granja",
+      "updatedAt": "2026-09-10T23:45:38.431Z"
     },
     {
-      "id": "prod-gen-4",
-      "code": "779888999004",
-      "name": "Pack x12 Lapiceras Tinta Gel 0.5mm",
-      "category": "Librería",
+      "id": "prod-car-4",
+      "code": "779600100004",
+      "name": "Jamón Cocido Fiambrería x Kg",
+      "category": "Fiambres & Fiambrería",
       "supplierId": "sup-1",
-      "costPrice": 2100,
-      "salePrice": 4200,
-      "stock": 24,
-      "minStock": 10,
-      "unit": "pack",
-      "size": "",
-      "color": "",
-      "brand": "BIC / Faber-Castell",
-      "description": "Bolígrafos trazo fino colores surtidos",
-      "updatedAt": "2026-08-30T21:54:17.278Z"
+      "costPrice": 5800,
+      "salePrice": 8900,
+      "stock": 12,
+      "minStock": 4,
+      "unit": "kg",
+      "brand": "Paladini",
+      "description": "Jamón cocido natural feteado a elección",
+      "updatedAt": "2026-09-10T23:45:38.431Z"
     },
     {
-      "id": "prod-gen-5",
-      "code": "779888999005",
-      "name": "Golosinas Surtidas Display Alfajores x12",
-      "category": "Kiosco",
+      "id": "prod-car-5",
+      "code": "779600100005",
+      "name": "Queso Tybo de Barra x Kg",
+      "category": "Quesos x Kg",
       "supplierId": "sup-1",
-      "costPrice": 5500,
+      "costPrice": 6400,
       "salePrice": 9600,
-      "stock": 5,
+      "stock": 15,
       "minStock": 5,
-      "unit": "caja",
-      "size": "",
-      "color": "",
-      "brand": "Guaymallén / Havanna",
-      "description": "Caja display alfajores de dulce de leche con baño de chocolate",
-      "updatedAt": "2026-08-30T21:54:17.278Z"
+      "unit": "kg",
+      "brand": "La Serenísima / Verónica",
+      "description": "Queso feteado ideal para sándwiches y fiambres",
+      "updatedAt": "2026-09-10T23:45:38.431Z"
     },
     {
-      "id": "prod-gen-6",
-      "code": "779888999006",
-      "name": "Bebida Energizante 473ml Pack x6",
-      "category": "Bebidas",
+      "id": "prod-car-6",
+      "code": "779600100006",
+      "name": "Chorizos de Cerdo Artesanales x Kg",
+      "category": "Embutidos & Achuras",
       "supplierId": "sup-1",
-      "costPrice": 6000,
-      "salePrice": 10800,
-      "stock": 7,
-      "minStock": 8,
-      "unit": "pack",
-      "size": "",
-      "color": "",
-      "brand": "Speed / Red Bull",
-      "description": "Latas de bebida energizante fría",
-      "updatedAt": "2026-08-30T21:54:17.278Z"
+      "costPrice": 4500,
+      "salePrice": 7200,
+      "stock": 20,
+      "minStock": 5,
+      "unit": "kg",
+      "brand": "Elaboración Propia",
+      "description": "Chorizos puros de cerdo especiados sin TACC",
+      "updatedAt": "2026-09-10T23:45:38.431Z"
     }
   ],
   "customers": [
@@ -220,7 +210,7 @@
       "creditLimit": 500000,
       "currentBalance": 0,
       "notes": "Cliente corporativo habitual. Pago a 30 días",
-      "updatedAt": "2026-08-09T16:55:04.213+00:00"
+      "updatedAt": "2026-09-10T23:50:41.057Z"
     },
     {
       "id": "cust-2",
@@ -248,6 +238,26 @@
     }
   ],
   "customerTransactions": [
+    {
+      "id": "tx-1789084241057",
+      "customerId": "cust-1",
+      "type": "payment",
+      "amount": 31500,
+      "balanceAfter": 0,
+      "date": "2026-09-10T23:50:41.057Z",
+      "description": "Cobro Cuenta Corriente (cash) ",
+      "receiptNumber": "REC-241057"
+    },
+    {
+      "id": "tx-1789084074286",
+      "customerId": "cust-1",
+      "type": "sale",
+      "amount": 31500,
+      "balanceAfter": 31500,
+      "date": "2026-09-10T23:47:53.980Z",
+      "description": "Venta FC-0001-00001073 a Cuenta Corriente",
+      "saleId": "sale-1789084073980"
+    },
     {
       "id": "tx-1786299688185",
       "customerId": "cust-2",
@@ -359,6 +369,245 @@
     }
   ],
   "sales": [
+    {
+      "id": "sale-1789084086580",
+      "invoiceNumber": "FC-0001-00001074",
+      "invoiceType": "FACTURA_B",
+      "cae": "74350551068701",
+      "caeDueDate": "20/9/2026",
+      "customerCuitDni": "20-00000000-0",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-09-10T23:48:06.580Z",
+      "customerName": "Consumidor Final",
+      "items": [
+        {
+          "productId": "prod-gen-2",
+          "code": "779888999002",
+          "productName": "Auriculares Inalámbricos Bluetooth TWS",
+          "quantity": 1,
+          "unitPrice": 16500,
+          "costPrice": 8900,
+          "subtotal": 16500
+        },
+        {
+          "productId": "prod-gen-4",
+          "code": "779888999004",
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+          "quantity": 1,
+          "unitPrice": 4200,
+          "costPrice": 2100,
+          "subtotal": 4200
+        },
+        {
+          "productId": "prod-gen-6",
+          "code": "779888999006",
+          "productName": "Bebida Energizante 473ml Pack x6",
+          "quantity": 1,
+          "unitPrice": 10800,
+          "costPrice": 6000,
+          "subtotal": 10800
+        }
+      ],
+      "subtotal": 31500,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 31500,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "completed"
+    },
+    {
+      "id": "sale-1789084073980",
+      "invoiceNumber": "FC-0001-00001073",
+      "invoiceType": "REMITO",
+      "cae": "74359591826067",
+      "caeDueDate": "20/9/2026",
+      "customerCuitDni": "30-78112233-4",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-09-10T23:47:53.980Z",
+      "customerId": "cust-1",
+      "customerName": "Constructora Horizon S.R.L.",
+      "items": [
+        {
+          "productId": "prod-gen-2",
+          "code": "779888999002",
+          "productName": "Auriculares Inalámbricos Bluetooth TWS",
+          "quantity": 1,
+          "unitPrice": 16500,
+          "costPrice": 8900,
+          "subtotal": 16500
+        },
+        {
+          "productId": "prod-gen-4",
+          "code": "779888999004",
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+          "quantity": 1,
+          "unitPrice": 4200,
+          "costPrice": 2100,
+          "subtotal": 4200
+        },
+        {
+          "productId": "prod-gen-6",
+          "code": "779888999006",
+          "productName": "Bebida Energizante 473ml Pack x6",
+          "quantity": 1,
+          "unitPrice": 10800,
+          "costPrice": 6000,
+          "subtotal": 10800
+        }
+      ],
+      "subtotal": 31500,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 31500,
+      "paymentMethod": "current_account",
+      "notes": "",
+      "status": "completed"
+    },
+    {
+      "id": "sale-1789083694658",
+      "invoiceNumber": "FC-0001-00001072",
+      "invoiceType": "REMITO",
+      "cae": "74372264882809",
+      "caeDueDate": "20/9/2026",
+      "customerCuitDni": "30-78112233-4",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-09-10T23:41:34.658Z",
+      "customerId": "cust-1",
+      "customerName": "Constructora Horizon S.R.L.",
+      "items": [
+        {
+          "productId": "prod-gen-1",
+          "code": "779888999001",
+          "productName": "Termo de Acero Inoxidable 1 Litro",
+          "quantity": 1,
+          "unitPrice": 22000,
+          "costPrice": 12500,
+          "subtotal": 22000
+        },
+        {
+          "productId": "prod-gen-2",
+          "code": "779888999002",
+          "productName": "Auriculares Inalámbricos Bluetooth TWS",
+          "quantity": 1,
+          "unitPrice": 16500,
+          "costPrice": 8900,
+          "subtotal": 16500
+        },
+        {
+          "productId": "prod-gen-4",
+          "code": "779888999004",
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+          "quantity": 1,
+          "unitPrice": 4200,
+          "costPrice": 2100,
+          "subtotal": 4200
+        },
+        {
+          "productId": "prod-gen-3",
+          "code": "779888999003",
+          "productName": "Caja de Chocolates Surtidos 250g",
+          "quantity": 1,
+          "unitPrice": 7800,
+          "costPrice": 4200,
+          "subtotal": 7800
+        }
+      ],
+      "subtotal": 50500,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 50500,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "completed"
+    },
+    {
+      "id": "sale-1789083653545",
+      "invoiceNumber": "FC-0001-00001071",
+      "invoiceType": "REMITO",
+      "cae": "74362725299540",
+      "caeDueDate": "20/9/2026",
+      "customerCuitDni": "30-78112233-4",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-09-10T23:40:53.545Z",
+      "customerId": "cust-1",
+      "customerName": "Constructora Horizon S.R.L.",
+      "items": [
+        {
+          "productId": "prod-gen-1",
+          "code": "779888999001",
+          "productName": "Termo de Acero Inoxidable 1 Litro",
+          "quantity": 1,
+          "unitPrice": 22000,
+          "costPrice": 12500,
+          "subtotal": 22000
+        },
+        {
+          "productId": "prod-gen-2",
+          "code": "779888999002",
+          "productName": "Auriculares Inalámbricos Bluetooth TWS",
+          "quantity": 1,
+          "unitPrice": 16500,
+          "costPrice": 8900,
+          "subtotal": 16500
+        },
+        {
+          "productId": "prod-gen-4",
+          "code": "779888999004",
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+          "quantity": 2,
+          "unitPrice": 4200,
+          "costPrice": 2100,
+          "subtotal": 8400
+        }
+      ],
+      "subtotal": 46900,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 46900,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "completed"
+    },
+    {
+      "id": "sale-1789083612944",
+      "invoiceNumber": "FC-0001-00001070",
+      "invoiceType": "REMITO",
+      "cae": "74382386317841",
+      "caeDueDate": "20/9/2026",
+      "customerCuitDni": "30-78112233-4",
+      "customerTaxCondition": "Consumidor Final / General",
+      "date": "2026-09-10T23:40:12.944Z",
+      "customerId": "cust-1",
+      "customerName": "Constructora Horizon S.R.L.",
+      "items": [
+        {
+          "productId": "prod-gen-4",
+          "code": "779888999004",
+          "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+          "quantity": 3,
+          "unitPrice": 4200,
+          "costPrice": 2100,
+          "subtotal": 12600
+        },
+        {
+          "productId": "prod-gen-1",
+          "code": "779888999001",
+          "productName": "Termo de Acero Inoxidable 1 Litro",
+          "quantity": 1,
+          "unitPrice": 22000,
+          "costPrice": 12500,
+          "subtotal": 22000
+        }
+      ],
+      "subtotal": 34600,
+      "discount": 0,
+      "surcharge": 0,
+      "totalAmount": 34600,
+      "paymentMethod": "cash",
+      "notes": "",
+      "status": "completed"
+    },
     {
       "id": "sale-1788126857276",
       "invoiceNumber": "FC-0001-00001069",
@@ -1165,12 +1414,57 @@
       "openDate": "2026-08-06T08:00:00+00:00",
       "closeDate": null,
       "initialAmount": 25000,
-      "cashSales": 466100,
-      "accountPayments": 186223,
+      "cashSales": 629600,
+      "accountPayments": 217723,
       "cashExpenses": 5000,
-      "expectedTotal": 672323,
+      "expectedTotal": 867323,
       "status": "open",
       "movements": [
+        {
+          "id": "mov-1789084241057",
+          "type": "in",
+          "amount": 31500,
+          "description": "Cobro Cta. Cte. Constructora Horizon S.R.L.",
+          "category": "customer_payment",
+          "date": "2026-09-10T23:50:41.057Z",
+          "paymentMethod": "cash"
+        },
+        {
+          "id": "mov-1789084086884",
+          "type": "in",
+          "amount": 31500,
+          "description": "Venta FC-0001-00001074 (Efectivo)",
+          "category": "sale",
+          "date": "2026-09-10T23:48:06.580Z",
+          "paymentMethod": "cash"
+        },
+        {
+          "id": "mov-1789083694974",
+          "type": "in",
+          "amount": 50500,
+          "description": "Venta FC-0001-00001072 (Efectivo)",
+          "category": "sale",
+          "date": "2026-09-10T23:41:34.658Z",
+          "paymentMethod": "cash"
+        },
+        {
+          "id": "mov-1789083653861",
+          "type": "in",
+          "amount": 46900,
+          "description": "Venta FC-0001-00001071 (Efectivo)",
+          "category": "sale",
+          "date": "2026-09-10T23:40:53.545Z",
+          "paymentMethod": "cash"
+        },
+        {
+          "id": "mov-1789083613263",
+          "type": "in",
+          "amount": 34600,
+          "description": "Venta FC-0001-00001070 (Efectivo)",
+          "category": "sale",
+          "date": "2026-09-10T23:40:12.944Z",
+          "paymentMethod": "cash"
+        },
         {
           "id": "mov-1788126857278",
           "type": "in",
@@ -1284,6 +1578,171 @@
     }
   ],
   "stockMovements": [
+    {
+      "id": "sm-1789084086884-jona",
+      "productId": "prod-gen-6",
+      "productName": "Bebida Energizante 473ml Pack x6",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 6,
+      "newStock": 5,
+      "date": "2026-09-10T23:48:06.580Z",
+      "reason": "Venta FC-0001-00001074"
+    },
+    {
+      "id": "sm-1789084086884-dfth",
+      "productId": "prod-gen-4",
+      "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 17,
+      "newStock": 16,
+      "date": "2026-09-10T23:48:06.580Z",
+      "reason": "Venta FC-0001-00001074"
+    },
+    {
+      "id": "sm-1789084086884-czwn",
+      "productId": "prod-gen-2",
+      "productName": "Auriculares Inalámbricos Bluetooth TWS",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 9,
+      "newStock": 8,
+      "date": "2026-09-10T23:48:06.580Z",
+      "reason": "Venta FC-0001-00001074"
+    },
+    {
+      "id": "sm-1789084074286-nmti",
+      "productId": "prod-gen-6",
+      "productName": "Bebida Energizante 473ml Pack x6",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 7,
+      "newStock": 6,
+      "date": "2026-09-10T23:47:53.980Z",
+      "reason": "Venta FC-0001-00001073"
+    },
+    {
+      "id": "sm-1789084074286-ztwf",
+      "productId": "prod-gen-4",
+      "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 18,
+      "newStock": 17,
+      "date": "2026-09-10T23:47:53.980Z",
+      "reason": "Venta FC-0001-00001073"
+    },
+    {
+      "id": "sm-1789084074286-ktmi",
+      "productId": "prod-gen-2",
+      "productName": "Auriculares Inalámbricos Bluetooth TWS",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 10,
+      "newStock": 9,
+      "date": "2026-09-10T23:47:53.980Z",
+      "reason": "Venta FC-0001-00001073"
+    },
+    {
+      "id": "sm-1789083694974-quli",
+      "productId": "prod-gen-3",
+      "productName": "Caja de Chocolates Surtidos 250g",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 28,
+      "newStock": 27,
+      "date": "2026-09-10T23:41:34.658Z",
+      "reason": "Venta FC-0001-00001072"
+    },
+    {
+      "id": "sm-1789083694974-2tnk",
+      "productId": "prod-gen-4",
+      "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 19,
+      "newStock": 18,
+      "date": "2026-09-10T23:41:34.658Z",
+      "reason": "Venta FC-0001-00001072"
+    },
+    {
+      "id": "sm-1789083694974-xbxw",
+      "productId": "prod-gen-2",
+      "productName": "Auriculares Inalámbricos Bluetooth TWS",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 11,
+      "newStock": 10,
+      "date": "2026-09-10T23:41:34.658Z",
+      "reason": "Venta FC-0001-00001072"
+    },
+    {
+      "id": "sm-1789083694974-9x3y",
+      "productId": "prod-gen-1",
+      "productName": "Termo de Acero Inoxidable 1 Litro",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 14,
+      "newStock": 13,
+      "date": "2026-09-10T23:41:34.658Z",
+      "reason": "Venta FC-0001-00001072"
+    },
+    {
+      "id": "sm-1789083653861-uszr",
+      "productId": "prod-gen-4",
+      "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+      "type": "sale",
+      "quantity": 2,
+      "previousStock": 21,
+      "newStock": 19,
+      "date": "2026-09-10T23:40:53.545Z",
+      "reason": "Venta FC-0001-00001071"
+    },
+    {
+      "id": "sm-1789083653861-9m2q",
+      "productId": "prod-gen-2",
+      "productName": "Auriculares Inalámbricos Bluetooth TWS",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 12,
+      "newStock": 11,
+      "date": "2026-09-10T23:40:53.545Z",
+      "reason": "Venta FC-0001-00001071"
+    },
+    {
+      "id": "sm-1789083653861-mjx2",
+      "productId": "prod-gen-1",
+      "productName": "Termo de Acero Inoxidable 1 Litro",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 15,
+      "newStock": 14,
+      "date": "2026-09-10T23:40:53.545Z",
+      "reason": "Venta FC-0001-00001071"
+    },
+    {
+      "id": "sm-1789083613263-igwy",
+      "productId": "prod-gen-1",
+      "productName": "Termo de Acero Inoxidable 1 Litro",
+      "type": "sale",
+      "quantity": 1,
+      "previousStock": 16,
+      "newStock": 15,
+      "date": "2026-09-10T23:40:12.944Z",
+      "reason": "Venta FC-0001-00001070"
+    },
+    {
+      "id": "sm-1789083613263-xpkq",
+      "productId": "prod-gen-4",
+      "productName": "Pack x12 Lapiceras Tinta Gel 0.5mm",
+      "type": "sale",
+      "quantity": 3,
+      "previousStock": 24,
+      "newStock": 21,
+      "date": "2026-09-10T23:40:12.944Z",
+      "reason": "Venta FC-0001-00001070"
+    },
     {
       "id": "sm-1788126857278-2lf4",
       "productId": "prod-gen-5",
@@ -1494,5 +1953,18 @@
       "reason": "Retiro de cliente Constructora Horizon (RET-0001-00045)"
     }
   ],
-  "priceIncreaseLogs": []
+  "priceIncreaseLogs": [],
+  "stores": [
+    {
+      "id": "store-demo-a",
+      "name": "Comercial Central Pro",
+      "cuit": "30-71234567-8",
+      "businessType": "Comercio General / Multirrubro",
+      "address": "Av. San Martín 1450, Ciudad",
+      "phone": "011 4589-2310",
+      "email": "ventas@comercialcentral.com",
+      "active": true,
+      "createdAt": "2026-09-10T23:02:12.181Z"
+    }
+  ]
 }

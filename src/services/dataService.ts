@@ -314,7 +314,8 @@ export class DataService {
     });
     this.state.sales.unshift(sale);
 
-    if (sale.paymentMethod === 'current_account' && sale.customerId) {
+    const isCurrentAccountSale = sale.paymentMethod === 'current_account' || sale.invoiceType === 'REMITO';
+    if (isCurrentAccountSale && sale.customerId) {
       const customer = this.state.customers.find(c => c.id === sale.customerId);
       if (customer) {
         customer.currentBalance += sale.totalAmount;
@@ -325,7 +326,8 @@ export class DataService {
           amount: sale.totalAmount,
           balanceAfter: customer.currentBalance,
           date: sale.date,
-          description: `Venta ${sale.invoiceNumber} a Cta Cte`
+          description: `${sale.invoiceType === 'REMITO' ? 'Remito' : 'Venta'} ${sale.invoiceNumber} a Cuenta Corriente`,
+          saleId: sale.id
         });
       }
     }
