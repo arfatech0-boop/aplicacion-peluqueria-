@@ -17,6 +17,7 @@ import { StoreSettingsModal } from './components/StoreSettingsModal';
 import { CardRatesModal } from './components/CardRatesModal';
 import { LoginView } from './components/LoginView';
 import { UserManagementModal } from './components/UserManagementModal';
+import { ClientManagementModal } from './components/ClientManagementModal';
 import { Search, Plus, AlertTriangle, ShieldCheck, User, Settings, Store, CreditCard, BookOpen, Users, LogOut, Key } from 'lucide-react';
 
 export default function App() {
@@ -40,6 +41,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [cardRatesOpen, setCardRatesOpen] = useState(false);
   const [usersModalOpen, setUsersModalOpen] = useState(false);
+  const [clientsModalOpen, setClientsModalOpen] = useState(false);
 
   // Active Authenticated User Session
   const [currentUser, setCurrentUser] = useState<SystemUser | null>(() => {
@@ -93,14 +95,29 @@ export default function App() {
     localStorage.setItem('gc_current_user', JSON.stringify(user));
   };
 
-  const handleCreateStore = (newStore: any, adminUser: SystemUser) => {
+  const handleCreateStore = async (newStore: any, adminUser: SystemUser) => {
     const updatedStores = [...(appState.stores || []), newStore];
     const updatedUsers = [...(appState.users || []), adminUser];
+    
     setAppState(prev => ({
       ...prev,
       stores: updatedStores,
       users: updatedUsers
     }));
+    
+    await DataService.saveUser(adminUser);
+    
+    try {
+      // Sync the new store to the server (avoiding /api/sync to prevent state wipe)
+      await fetch('/api/stores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newStore)
+      });
+    } catch (e) {
+      console.warn('Failed to sync new store to server', e);
+    }
+
     handleLogin(adminUser, newStore.id);
   };
 
@@ -155,8 +172,20 @@ export default function App() {
           </form>
 
           <div className="flex items-center space-x-2 sm:space-x-3 ml-3">
+            {/* Client Management Button (Superadmin only) */}
+            {currentUser.role === 'superadmin' && (
+              <button
+                onClick={() => setClientsModalOpen(true)}
+                className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors text-xs font-bold shadow-xs"
+                title="Gestión de Clientes y Comercios"
+              >
+                <Users className="w-3.5 h-3.5 text-blue-600" />
+                <span>Clientes</span>
+              </button>
+            )}
+
             {/* User Management Button (Admin only) */}
-            {currentUser.role === 'admin' && (
+            {(currentUser.role === 'admin' || currentUser.role === 'superadmin') && (
               <button
                 onClick={() => setUsersModalOpen(true)}
                 className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors text-xs font-bold shadow-xs"
@@ -213,7 +242,7 @@ export default function App() {
                   {currentUser.name}
                 </span>
                 <span className="text-[10px] text-indigo-600 block font-bold capitalize">
-                  {currentUser.role === 'admin' ? 'Administrador' : 'Cajero / Vendedor'}
+                  {currentUser.role === 'superadmin' ? 'Super Administrador' : currentUser.role === 'admin' ? 'Administrador' : 'Cajero / Vendedor'}
                 </span>
               </div>
               <button
@@ -313,7 +342,13 @@ export default function App() {
         appState={appState}
         currentUser={currentUser}
       />
+
+      {/* Client Management Modal */}
+      <ClientManagementModal
+        isOpen={clientsModalOpen}
+        onClose={() => setClientsModalOpen(false)}
+        appState={appState}
+      />
     </div>
   );
 }
-

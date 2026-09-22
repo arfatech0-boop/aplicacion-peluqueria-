@@ -12,13 +12,17 @@ import {
   FileText
 } from 'lucide-react';
 import { AppState, CashRegister, CashMovement } from '../types';
+import { DataService } from '../services/dataService';
 
 interface CashRegisterViewProps {
   appState: AppState;
 }
 
 export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) => {
-  const currentRegister = appState.cashRegisters.find(c => c.status === 'open') || appState.cashRegisters[0];
+  const currentRegister = appState.cashRegisters.find(c => c.status === 'open');
+
+  const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
+  const [initialAmount, setInitialAmount] = useState<number | ''>('');
 
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
   const [movType, setMovType] = useState<'in' | 'out'>('out');
@@ -29,7 +33,30 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
   const [isBlindCountMode, setIsBlindCountMode] = useState(false);
   const [actualCashCounted, setActualCashCounted] = useState<number | ''>('');
 
-  const handleAddMovement = (e: React.FormEvent) => {
+  const handleOpenRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (typeof initialAmount !== 'number') return;
+
+    const newRegister: CashRegister = {
+      id: `cash-${Date.now()}`,
+      openDate: new Date().toISOString(),
+      initialAmount,
+      cashSales: 0,
+      cashExpenses: 0,
+      expectedTotal: initialAmount,
+      actualTotal: 0,
+      difference: 0,
+      status: 'open',
+      movements: [],
+      accountPayments: 0
+    };
+
+    await DataService.saveCashRegister(newRegister);
+    setIsOpenModalOpen(false);
+    setInitialAmount('');
+  };
+
+  const handleAddMovement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentRegister || !movAmount || Number(movAmount) <= 0) return;
 
@@ -52,12 +79,13 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
       currentRegister.expectedTotal -= amount;
     }
 
+    await DataService.saveCashRegister(currentRegister);
     setIsMovementModalOpen(false);
     setMovAmount('');
     setMovDescription('');
   };
 
-  const handleCloseRegister = (e: React.FormEvent) => {
+  const handleCloseRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentRegister || typeof actualCashCounted !== 'number') return;
 
@@ -66,6 +94,7 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
     currentRegister.status = 'closed';
     currentRegister.closeDate = new Date().toISOString();
 
+    await DataService.saveCashRegister(currentRegister);
     setIsCloseModalOpen(false);
     alert(`¡Caja cerrada correctamente!\n\nMonto Contado: $${actualCashCounted.toLocaleString('es-AR')}\nDiferencia: $${currentRegister.difference.toLocaleString('es-AR')}`);
   };
@@ -117,9 +146,13 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
             </button>
           </div>
         ) : (
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-700">
-            Caja Cerrada
-          </span>
+          <button
+            onClick={() => setIsOpenModalOpen(true)}
+            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center space-x-1.5 shadow animate-pulse"
+          >
+            <Wallet className="w-4 h-4" />
+            <span>Abrir Turno / Caja</span>
+          </button>
         )}
       </div>
 
@@ -313,6 +346,51 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
                   className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-white font-bold"
                 >
                   Cerrar Caja
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Open Register Modal */}
+      {isOpenModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs">
+            <h3 className="font-bold text-slate-900 text-base flex items-center space-x-2">
+              <Wallet className="w-5 h-5 text-emerald-600" />
+              <span>Abrir Turno / Caja Diaria</span>
+            </h3>
+
+            <p className="text-slate-600 mb-2">Ingrese el fondo fijo inicial con el que comienza la jornada de ventas.</p>
+
+            <form onSubmit={handleOpenRegister} className="space-y-4">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Fondo Inicial ($) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={initialAmount}
+                  onChange={e => setInitialAmount(e.target.value ? Number(e.target.value) : '')}
+                  className="w-full px-3 py-2 border rounded bg-slate-50 font-bold text-sm text-slate-900"
+                  placeholder="Ej. 5000"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsOpenModalOpen(false)}
+                  className="px-4 py-2 rounded bg-slate-100 text-slate-700 font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                >
+                  Abrir Caja
                 </button>
               </div>
             </form>

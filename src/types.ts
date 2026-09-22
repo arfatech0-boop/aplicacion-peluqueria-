@@ -273,7 +273,7 @@ export interface StoreAccount {
   createdAt: string;
 }
 
-export type UserRole = 'admin' | 'cashier' | 'manager';
+export type UserRole = 'superadmin' | 'admin' | 'cashier' | 'manager';
 
 export interface SystemUser {
   id: string;

@@ -43,6 +43,7 @@ export class DataService {
 
   public static getStoreScopedState(storeId: string): AppState {
     const sId = storeId;
+    const isSuperAdmin = this.state.users.find(u => u.id === this.currentUserId)?.role === 'superadmin';
     
     // Filter products
     const products = this.state.products.filter(p => (p as any).storeId === sId || (! (p as any).storeId && sId === 'store-demo-a'));
@@ -53,6 +54,7 @@ export class DataService {
     const cashRegisters = this.state.cashRegisters.filter(cr => (cr as any).storeId === sId || (! (cr as any).storeId && sId === 'store-demo-a'));
     const withdrawals = this.state.withdrawals.filter(w => (w as any).storeId === sId || (! (w as any).storeId && sId === 'store-demo-a'));
     const priceIncreaseLogs = this.state.priceIncreaseLogs.filter(log => (log as any).storeId === sId || (! (log as any).storeId && sId === 'store-demo-a'));
+    const stockMovements = this.state.stockMovements.filter(sm => (sm as any).storeId === sId || (! (sm as any).storeId && sId === 'store-demo-a'));
 
     const currentStore = (this.state.stores || []).find(st => st.id === sId);
 
@@ -65,6 +67,7 @@ export class DataService {
 
     return {
       ...this.state,
+      stores: isSuperAdmin ? this.state.stores : currentStore ? [currentStore] : [],
       currentStoreId: sId,
       currentUserId: this.currentUserId,
       storeInfo,
@@ -75,7 +78,13 @@ export class DataService {
       cheques,
       cashRegisters,
       withdrawals,
-      priceIncreaseLogs
+      priceIncreaseLogs,
+      stockMovements,
+      users: isSuperAdmin ? this.state.users : this.state.users.filter(u => 
+        (u as any).storeId === sId || 
+        (! (u as any).storeId && sId === 'store-demo-a') || 
+        u.role === 'superadmin'
+      )
     };
   }
 
@@ -134,6 +143,12 @@ export class DataService {
             this.state = payload.payload;
           } else if (payload.type === 'STORE_INFO_UPDATED' && payload.payload) {
             this.state = { ...this.state, storeInfo: payload.payload };
+          } else if (payload.type === 'STORES_UPDATED' && payload.payload) {
+            this.state = { ...this.state, stores: payload.payload };
+          } else if (payload.type === 'USERS_UPDATED' && payload.payload) {
+            this.state = { ...this.state, users: payload.payload };
+          } else if (payload.type === 'CASH_REGISTERS_UPDATED' && payload.payload) {
+            this.state = { ...this.state, cashRegisters: payload.payload };
           } else if (payload.type === 'PRODUCTS_UPDATED' && payload.payload) {
             this.state = { ...this.state, products: payload.payload };
           } else if (payload.type === 'CUSTOMERS_UPDATED' && payload.payload) {
@@ -289,11 +304,16 @@ export class DataService {
   }
 
   public static async processSale(sale: Sale): Promise<void> {
+    const saleWithStore: Sale = {
+      ...sale,
+      storeId: (sale as any).storeId || this.currentStoreId || 'store-demo-a'
+    } as any;
+
     try {
       const res = await fetch('/api/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sale)
+        body: JSON.stringify(saleWithStore)
       });
       if (res.ok) {
         const json = await res.json();
@@ -306,29 +326,30 @@ export class DataService {
     } catch (e) {}
 
     // Client fallback
-    sale.items.forEach(item => {
+    saleWithStore.items.forEach(item => {
       const prod = this.state.products.find(p => p.id === item.productId);
       if (prod) {
-        prod.stock = Math.max(0, prod.stock - item.quantity);
+        prod.stock = prod.stock - item.quantity;
       }
     });
-    this.state.sales.unshift(sale);
+    this.state.sales.unshift(saleWithStore);
 
-    const isCurrentAccountSale = sale.paymentMethod === 'current_account' || sale.invoiceType === 'REMITO';
-    if (isCurrentAccountSale && sale.customerId) {
-      const customer = this.state.customers.find(c => c.id === sale.customerId);
+    const isCurrentAccountSale = saleWithStore.paymentMethod === 'current_account' || saleWithStore.invoiceType === 'REMITO';
+    if (isCurrentAccountSale && saleWithStore.customerId) {
+      const customer = this.state.customers.find(c => c.id === saleWithStore.customerId);
       if (customer) {
-        customer.currentBalance += sale.totalAmount;
+        customer.currentBalance += saleWithStore.totalAmount;
         this.state.customerTransactions.unshift({
           id: `tx-${Date.now()}`,
           customerId: customer.id,
           type: 'sale',
-          amount: sale.totalAmount,
+          amount: saleWithStore.totalAmount,
           balanceAfter: customer.currentBalance,
-          date: sale.date,
-          description: `${sale.invoiceType === 'REMITO' ? 'Remito' : 'Venta'} ${sale.invoiceNumber} a Cuenta Corriente`,
-          saleId: sale.id
-        });
+          date: saleWithStore.date,
+          description: `${saleWithStore.invoiceType === 'REMITO' ? 'Remito' : 'Venta'} ${saleWithStore.invoiceNumber} a Cuenta Corriente`,
+          saleId: saleWithStore.id,
+          storeId: (saleWithStore as any).storeId
+        } as any);
       }
     }
 
@@ -472,6 +493,26 @@ export class DataService {
     if (item) {
       item.status = status;
       this.notify();
+    }
+  }
+
+  public static async saveCashRegister(register: CashRegister): Promise<void> {
+    try {
+      const registerWithStore = { ...register, storeId: (register as any).storeId || this.currentStoreId || 'store-demo-a' };
+      const res = await fetch('/api/cash-registers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(registerWithStore)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          this.state.cashRegisters = json.data;
+          this.notify();
+        }
+      }
+    } catch (e) {
+      console.error('[DataService] Error saving cash register', e);
     }
   }
 

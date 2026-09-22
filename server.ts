@@ -4,7 +4,7 @@ import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import { createServer as createViteServer } from 'vite';
 import { initialAppData } from './src/data/mockData';
-import { AppState, Product, Supplier, Customer, Sale, CustomerWithdrawal, Cheque, CashRegister, SystemUser } from './src/types';
+import { AppState, Product, Supplier, Customer, Sale, CustomerWithdrawal, Cheque, CashRegister, SystemUser, StoreAccount } from './src/types';
 
 import { SupabaseService } from './src/services/supabaseService';
 
@@ -34,9 +34,14 @@ if (fs.existsSync(DATA_FILE)) {
 // Connect to Supabase Cloud Database & sync latest state
 async function loadFromSupabase() {
   const remoteState = await SupabaseService.fetchAppState();
-  if (remoteState && remoteState.products && remoteState.products.length > 0) {
+  const localProductsCount = appState.products?.length || 0;
+  const remoteProductsCount = remoteState?.products?.length || 0;
+
+  if (localProductsCount >= remoteProductsCount && localProductsCount > 0) {
+    console.log(`[Server] 🚀 Preserving local database (${localProductsCount} products, ${appState.customers?.length || 0} customers, ${appState.sales?.length || 0} sales).`);
+  } else if (remoteState && remoteProductsCount > localProductsCount) {
     appState = remoteState;
-    console.log('[Server] 🚀 Connected to Supabase Cloud Database! Loaded remote state.');
+    console.log(`[Server] 🚀 Connected to Supabase Cloud Database! Loaded remote state (${remoteProductsCount} products).`);
     saveState(); // Update local fallback
   } else {
     console.log('[Server] Operating with local file database / ready for Supabase sync.');
@@ -80,24 +85,64 @@ app.get('/api/events', (req, res) => {
 // Ensure storeInfo & users defaults
 appState.storeInfo = { ...initialAppData.storeInfo, ...appState.storeInfo };
 
-appState.stores = [
+const defaultStores: StoreAccount[] = [
   {
     id: 'store-demo-a',
-    name: appState.storeInfo?.name || 'Comercio Principal',
-    cuit: appState.storeInfo?.cuit || '20-12345678-9',
+    name: appState.storeInfo?.name || 'Comercio Principal (Admin)',
+    cuit: appState.storeInfo?.cuit || '30-71234567-8',
     businessType: (appState.storeInfo?.businessType || 'Comercio General / Multirrubro') as any,
-    address: appState.storeInfo?.address || '',
-    phone: appState.storeInfo?.phone || '',
-    email: appState.storeInfo?.email || '',
+    address: appState.storeInfo?.address || 'Av. San Martín 1450',
+    phone: appState.storeInfo?.phone || '011 4589-2310',
+    email: appState.storeInfo?.email || 'admin@comercio.com',
+    active: true,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'store-facu',
+    name: 'Comercio Personal - Facundo',
+    cuit: '20-38491029-4',
+    businessType: 'Comercio General / Multirrubro',
+    address: 'Av. Rivadavia 2500, CABA',
+    phone: '011 5544-3322',
+    email: 'facundo@comercio.com',
     active: true,
     createdAt: new Date().toISOString()
   }
 ];
 
+if (!appState.stores || appState.stores.length === 0) {
+  appState.stores = defaultStores;
+}
+
 if (!appState.users || appState.users.length === 0) {
   appState.users = [
-    ...initialAppData.users
+    {
+      id: 'u-1',
+      storeId: 'store-demo-a',
+      username: 'admin',
+      password: '123',
+      name: 'Administrador General',
+      role: 'admin',
+      active: true,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'u-2',
+      storeId: 'store-facu',
+      username: 'facu123',
+      password: '12345',
+      name: 'Facundo (Personal)',
+      role: 'admin',
+      active: true,
+      createdAt: new Date().toISOString()
+    }
   ];
+} else {
+  // Ensure storeId is assigned
+  appState.users.forEach(u => {
+    if (u.username === 'admin' && !u.storeId) u.storeId = 'store-demo-a';
+    if (u.username === 'facu123') u.storeId = 'store-facu';
+  });
 }
 
 // Helper to sanitize users array (strip passwords from API responses)
@@ -162,11 +207,6 @@ app.post('/api/users', (req, res) => {
     return res.status(400).json({ success: false, error: 'El nombre de usuario ya existe en el sistema' });
   }
 
-  // Ensure password is hashed with bcrypt
-  if (!user.password.startsWith('$2a$') && !user.password.startsWith('$2b$')) {
-    user.password = bcrypt.hashSync(user.password, 10);
-  }
-
   if (existingIndex >= 0) {
     appState.users[existingIndex] = user;
   } else {
@@ -174,8 +214,8 @@ app.post('/api/users', (req, res) => {
   }
 
   saveState();
-  broadcastUpdate('USERS_UPDATED', sanitizeUsers(appState.users));
-  return res.json({ success: true, data: sanitizeUsers(appState.users) });
+  broadcastUpdate('USERS_UPDATED', appState.users);
+  return res.json({ success: true, data: appState.users });
 });
 
 // DELETE User
@@ -204,6 +244,21 @@ app.post('/api/store-info', (req, res) => {
     return res.json({ success: true, data: appState.storeInfo });
   }
   res.status(400).json({ success: false, error: 'Invalid store info payload' });
+});
+
+// POST add store
+app.post('/api/stores', (req, res) => {
+  const store: StoreAccount = req.body;
+  if (!appState.stores) appState.stores = [];
+  const index = appState.stores.findIndex(s => s.id === store.id);
+  if (index >= 0) {
+    appState.stores[index] = store;
+  } else {
+    appState.stores.push(store);
+  }
+  saveState();
+  broadcastUpdate('STORES_UPDATED', appState.stores);
+  res.json({ success: true, data: appState.stores });
 });
 
 // POST save entire state / sync
@@ -366,13 +421,16 @@ app.post('/api/suppliers/increase-prices', (req, res) => {
 // POST process sale
 app.post('/api/sales', (req, res) => {
   const sale: Sale = req.body;
+  if (!(sale as any).storeId) {
+    (sale as any).storeId = 'store-demo-a';
+  }
 
-  // 1. Deduct stock and log movements
+  // 1. Deduct stock and log movements (allows selling when stock is 0/critical)
   sale.items.forEach(item => {
     const prod = appState.products.find(p => p.id === item.productId);
     if (prod) {
       const prev = prod.stock;
-      prod.stock = Math.max(0, prod.stock - item.quantity);
+      prod.stock = prod.stock - item.quantity;
       prod.updatedAt = new Date().toISOString();
 
       appState.stockMovements.unshift({
@@ -384,8 +442,9 @@ app.post('/api/sales', (req, res) => {
         previousStock: prev,
         newStock: prod.stock,
         date: sale.date,
-        reason: `Venta ${sale.invoiceNumber}`
-      });
+        reason: `Venta ${sale.invoiceNumber}`,
+        storeId: (sale as any).storeId
+      } as any);
     }
   });
 
@@ -677,15 +736,37 @@ app.patch('/api/withdrawals/:id/status', (req, res) => {
 // POST Add or update Cheque
 app.post('/api/cheques', (req, res) => {
   const cheque: Cheque = req.body;
-  const index = appState.cheques.findIndex(c => c.id === cheque.id);
-  if (index >= 0) {
-    appState.cheques[index] = cheque;
+  
+  if (!appState.cheques) appState.cheques = [];
+  const existingIndex = appState.cheques.findIndex(c => c.id === cheque.id);
+  
+  if (existingIndex >= 0) {
+    appState.cheques[existingIndex] = cheque;
   } else {
     appState.cheques.unshift(cheque);
   }
+
   saveState();
   broadcastUpdate('CHEQUES_UPDATED', appState.cheques);
-  res.json({ success: true, data: appState.cheques });
+  return res.json({ success: true, data: appState.cheques });
+});
+
+// POST /api/cash-registers
+app.post('/api/cash-registers', (req, res) => {
+  const register: CashRegister = req.body;
+  
+  if (!appState.cashRegisters) appState.cashRegisters = [];
+  const existingIndex = appState.cashRegisters.findIndex(c => c.id === register.id);
+  
+  if (existingIndex >= 0) {
+    appState.cashRegisters[existingIndex] = register;
+  } else {
+    appState.cashRegisters.unshift(register);
+  }
+
+  saveState();
+  broadcastUpdate('CASH_REGISTERS_UPDATED', appState.cashRegisters);
+  return res.json({ success: true, data: appState.cashRegisters });
 });
 
 // POST Reset Demo State
@@ -694,6 +775,31 @@ app.post('/api/reset-demo', (req, res) => {
   saveState();
   broadcastUpdate('FULL_SYNC', appState);
   res.json({ success: true, data: appState });
+});
+
+// POST Reload Seed Data from app-data.json
+app.post('/api/reload-seed', (req, res) => {
+  if (fs.existsSync(DATA_FILE)) {
+    try {
+      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+      appState = JSON.parse(raw);
+      broadcastUpdate('FULL_SYNC', appState);
+      return res.json({
+        success: true,
+        message: 'Loaded bulk dataset!',
+        counts: {
+          products: appState.products?.length,
+          customers: appState.customers?.length,
+          suppliers: appState.suppliers?.length,
+          sales: appState.sales?.length,
+          cheques: appState.cheques?.length,
+        }
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  }
+  return res.status(404).json({ success: false, error: 'DATA_FILE not found' });
 });
 
 export default app;
@@ -722,3 +828,5 @@ async function startServer() {
 if (!process.env.VERCEL) {
   startServer();
 }
+//
+

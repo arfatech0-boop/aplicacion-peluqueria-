@@ -176,11 +176,9 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
 
   const handleSelectProduct = (product: Product, index: number) => {
     setSelectedIndex(index);
-    if (product.stock > 0) {
-      addToCart(product);
-      setRecentlyAddedId(product.id);
-      setTimeout(() => setRecentlyAddedId(null), 800);
-    }
+    addToCart(product);
+    setRecentlyAddedId(product.id);
+    setTimeout(() => setRecentlyAddedId(null), 800);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -194,14 +192,10 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
       );
 
       if (exactMatch) {
-        if (exactMatch.stock > 0) {
-          addToCart(exactMatch);
-          setRecentlyAddedId(exactMatch.id);
-          setTimeout(() => setRecentlyAddedId(null), 800);
-          setSearchQuery(''); // Clear search input for fast barcode scanning stream
-        } else {
-          alert(`El producto "${exactMatch.name}" no tiene stock disponible.`);
-        }
+        addToCart(exactMatch);
+        setRecentlyAddedId(exactMatch.id);
+        setTimeout(() => setRecentlyAddedId(null), 800);
+        setSearchQuery(''); // Clear search input for fast barcode scanning stream
         return;
       }
 
@@ -239,7 +233,7 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
       // 3. Otherwise add selected product from filtered list
       if (filteredProducts.length > 0) {
         const targetProduct = filteredProducts[selectedIndex];
-        if (targetProduct && targetProduct.stock > 0) {
+        if (targetProduct) {
           addToCart(targetProduct);
           setRecentlyAddedId(targetProduct.id);
           setTimeout(() => setRecentlyAddedId(null), 800);
@@ -575,12 +569,12 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
                 <div
                   key={product.id}
                   ref={el => (productRefs.current[idx] = el)}
-                  onClick={() => !isOut && handleSelectProduct(product, idx)}
+                  onClick={() => handleSelectProduct(product, idx)}
                   className={`relative bg-white p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-lg ${
-                    isOut
-                      ? 'opacity-50 border-slate-200 bg-slate-50/50 cursor-not-allowed'
-                      : isSelected
+                    isSelected
                       ? 'border-2 border-indigo-600 bg-indigo-50/40 shadow-md ring-2 ring-indigo-600/20'
+                      : isOut
+                      ? 'border-red-200 bg-red-50/20 hover:border-red-300 shadow-xs'
                       : 'border-slate-200/80 hover:border-indigo-300 shadow-xs'
                   }`}
                 >
@@ -597,7 +591,7 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center space-x-1.5">
                         <span className="text-[10px] font-mono font-bold text-slate-400 uppercase bg-slate-100 px-1.5 py-0.5 rounded">{product.code}</span>
-                        {isSelected && !isOut && (
+                        {isSelected && (
                           <span className="bg-indigo-600 text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center space-x-1 animate-pulse">
                             <CornerDownLeft className="w-2.5 h-2.5" />
                             <span>[ENTER]</span>

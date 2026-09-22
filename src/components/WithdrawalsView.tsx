@@ -90,11 +90,6 @@ export const WithdrawalsView: React.FC<WithdrawalsViewProps> = ({ appState }) =>
     const prod = appState.products.find(p => p.id === selectedProductId);
     if (!prod) return;
 
-    if (prod.stock < addQuantity) {
-      alert(`Stock insuficiente. Stock actual disponible: ${prod.stock} ${prod.unit}`);
-      return;
-    }
-
     setItems(prev => {
       const existing = prev.find(i => i.productId === prod.id);
       if (existing) {

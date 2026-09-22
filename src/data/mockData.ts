@@ -441,11 +441,20 @@ export const initialAppData: AppState = {
     {
       id: "user-admin-default",
       username: "admin",
-      password: "admin",
+      password: "123",
       name: "Administrador Principal",
       role: "admin",
       active: true,
       createdAt: "2026-08-01T00:00:00.000Z"
+    },
+    {
+      id: "user-facu",
+      username: "facu123",
+      password: "12345",
+      name: "Facundo (Personal)",
+      role: "admin",
+      active: true,
+      createdAt: new Date().toISOString()
     }
   ]
 };

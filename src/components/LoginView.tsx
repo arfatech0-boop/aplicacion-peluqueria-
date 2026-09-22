@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import bcrypt from 'bcryptjs';
 import { 
   Store, 
   Lock, 
@@ -41,7 +42,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
   const [newAdminUsername, setNewAdminUsername] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
 
-  const stores = (appState.stores && appState.stores.length > 0) ? appState.stores.filter(s => s.id === 'store-demo-a') : [
+  const stores = (appState.stores && appState.stores.length > 0) ? appState.stores : [
     {
       id: 'store-demo-a',
       name: appState.storeInfo.name || 'Comercio Principal',
@@ -86,7 +87,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
       return;
     }
 
-    const selectedStore = stores.find(s => s.id === selectedStoreId);
+    // Search user globally first to bind to their assigned storeId
+    const foundUser = (appState.users || []).find(u => u.username.toLowerCase() === username.trim().toLowerCase());
+    const targetStoreId = foundUser?.storeId || selectedStoreId;
+
+    const selectedStore = stores.find(s => s.id === targetStoreId);
 
     // Check store trial expiration
     if (selectedStore?.isDemo && selectedStore.trialExpiresAt) {
@@ -95,9 +100,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
         return;
       }
     }
-
-    const storeUsers = appState.users.filter(u => !u.storeId || u.storeId === selectedStoreId);
-    const foundUser = storeUsers.find(u => u.username.toLowerCase() === username.trim().toLowerCase());
 
     if (foundUser) {
       if (!foundUser.active) {
@@ -113,29 +115,27 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
         }
       }
 
-      if (foundUser.password && foundUser.password !== password) {
+      let isPasswordValid = false;
+      if (!foundUser.password) {
+        isPasswordValid = true;
+      } else if (foundUser.password === password) {
+        isPasswordValid = true;
+      } else if (foundUser.password.startsWith('$2a$') || foundUser.password.startsWith('$2b$')) {
+        try {
+          isPasswordValid = bcrypt.compareSync(password, foundUser.password);
+        } catch (e) {
+          isPasswordValid = false;
+        }
+      }
+
+      if (!isPasswordValid) {
         setErrorMessage('Contraseña incorrecta. Por favor intente nuevamente.');
         return;
       }
-      onLogin(foundUser, selectedStoreId);
+      onLogin(foundUser, targetStoreId);
     } else {
-      // Validate credentials for existing user
-      if (password !== '123456' && password !== 'admin') {
-        setErrorMessage('Usuario o contraseña no encontrados. Pida al administrador que le cree una cuenta.');
-        return;
-      }
-
-      const newUser: SystemUser = {
-        id: `usr-${Date.now()}`,
-        storeId: selectedStoreId,
-        username: username.trim(),
-        password: password || '123456',
-        name: username.trim().toUpperCase(),
-        role: 'admin',
-        active: true,
-        createdAt: new Date().toISOString()
-      };
-      onLogin(newUser, selectedStoreId);
+      setErrorMessage('Usuario no encontrado. Pida al administrador que le cree una cuenta.');
+      return;
     }
   };
 
