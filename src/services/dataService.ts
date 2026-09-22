@@ -1,60 +1,142 @@
-import { AppState, Product, Supplier, Customer, Sale, CustomerWithdrawal, Cheque, CashRegister, CustomerTransaction, StockMovement, GlobalPriceIncreaseLog, StoreInfo, SystemUser } from '../types';
-import { initialAppData } from '../data/mockData';
+import { createClient, SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
+import { AppState, CashRegister, Cheque, Customer, CustomerTransaction, CustomerWithdrawal, GlobalPriceIncreaseLog, Product, Sale, StockMovement, StoreAccount, StoreInfo, Supplier, SystemUser } from '../types';
 
 export class DataService {
-  private static state: AppState = { ...initialAppData };
-  private static listeners: Array<(state: AppState) => void> = [];
-  private static isConnected: boolean = false;
-  private static eventSource: EventSource | null = null;
+  private static listeners: ((state: AppState) => void)[] = [];
+  
+  // Use the same SUPABASE_URL and SUPABASE_KEY from Vite env vars
+  private static supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  private static supabaseKey = import.meta.env.VITE_SUPABASE_KEY || '';
+  private static supabase: SupabaseClient = createClient(this.supabaseUrl, this.supabaseKey);
 
-  private static currentStoreId: string = localStorage.getItem('gc_store_id') || '';
+  private static currentStoreId: string = localStorage.getItem('gc_store_id') || 'store-demo-a';
   private static currentUserId: string = localStorage.getItem('gc_user_id') || '';
 
-  public static getCurrentStoreId(): string {
-    return this.currentStoreId;
+  private static state: AppState = {
+    stores: [],
+    storeInfo: {} as StoreInfo,
+    users: [],
+    products: [],
+    suppliers: [],
+    priceIncreaseLogs: [],
+    customers: [],
+    customerTransactions: [],
+    withdrawals: [],
+    sales: [],
+    cheques: [],
+    cashRegisters: [],
+    stockMovements: []
+  };
+
+  private static isInitialized = false;
+
+  public static async init() {
+    if (this.isInitialized) return;
+    this.isInitialized = true;
+    
+    // Subscribe to all changes in Supabase
+    this.setupRealtimeSubscription();
+
+    // Fetch initial data
+    await this.fetchAllData();
   }
 
-  public static getCurrentUserId(): string {
-    return this.currentUserId;
+  private static setupRealtimeSubscription() {
+    this.supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+        // When any table changes, fetch all data again to keep it simple, 
+        // or just fetch the specific table. For MVP, we fetch all.
+        console.log('Realtime update received:', payload);
+        this.fetchAllData();
+      })
+      .subscribe();
   }
 
-  public static setCurrentSession(storeId: string, userId: string) {
-    this.currentStoreId = storeId;
-    this.currentUserId = userId;
-    localStorage.setItem('gc_store_id', storeId);
-    localStorage.setItem('gc_user_id', userId);
-    this.fetchLatest();
+  private static async fetchAllData() {
+    try {
+      const [
+        { data: stores },
+        { data: storeInfo },
+        { data: users },
+        { data: products },
+        { data: suppliers },
+        { data: priceIncreaseLogs },
+        { data: customers },
+        { data: customerTransactions },
+        { data: withdrawals },
+        { data: sales },
+        { data: cheques },
+        { data: cashRegisters },
+        { data: stockMovements }
+      ] = await Promise.all([
+        this.supabase.from('stores').select('*'),
+        this.supabase.from('storeInfo').select('*'),
+        this.supabase.from('users').select('*'),
+        this.supabase.from('products').select('*'),
+        this.supabase.from('suppliers').select('*'),
+        this.supabase.from('priceIncreaseLogs').select('*'),
+        this.supabase.from('customers').select('*'),
+        this.supabase.from('customerTransactions').select('*'),
+        this.supabase.from('withdrawals').select('*'),
+        this.supabase.from('sales').select('*'),
+        this.supabase.from('cheques').select('*'),
+        this.supabase.from('cashRegisters').select('*'),
+        this.supabase.from('stockMovements').select('*')
+      ]);
+
+      this.state = {
+        stores: stores || [],
+        storeInfo: storeInfo && storeInfo.length > 0 ? storeInfo[0] : {} as StoreInfo,
+        users: users || [],
+        products: products || [],
+        suppliers: suppliers || [],
+        priceIncreaseLogs: priceIncreaseLogs || [],
+        customers: customers || [],
+        customerTransactions: customerTransactions || [],
+        withdrawals: withdrawals || [],
+        sales: sales || [],
+        cheques: cheques || [],
+        cashRegisters: cashRegisters || [],
+        stockMovements: stockMovements || []
+      };
+
+      this.notify();
+    } catch (err) {
+      console.error('Error fetching data from Supabase:', err);
+    }
   }
 
-  public static clearSession() {
-    this.currentStoreId = '';
-    this.currentUserId = '';
-    localStorage.removeItem('gc_store_id');
-    localStorage.removeItem('gc_user_id');
-    this.notify();
+  private static notify() {
+    const scopedState = this.getStoreScopedState(this.currentStoreId);
+    this.listeners.forEach(listener => listener(scopedState));
   }
 
   public static getState(): AppState {
-    if (!this.currentStoreId) {
-      return this.state;
+    if (!this.state.stores || this.state.stores.length === 0) {
+      // If we haven't loaded data yet, return empty structured state
+      return this.getStoreScopedState(this.currentStoreId);
     }
     return this.getStoreScopedState(this.currentStoreId);
   }
 
   public static getStoreScopedState(storeId: string): AppState {
     const sId = storeId;
-    const isSuperAdmin = this.state.users.find(u => u.id === this.currentUserId)?.role === 'superadmin';
+    const isSuperAdmin = this.state.users?.find(u => u.id === this.currentUserId)?.role === 'superadmin';
     
-    // Filter products
-    const products = this.state.products.filter(p => (p as any).storeId === sId || (! (p as any).storeId && sId === 'store-demo-a'));
-    const sales = this.state.sales.filter(s => (s as any).storeId === sId || (! (s as any).storeId && sId === 'store-demo-a'));
-    const customers = this.state.customers.filter(c => (c as any).storeId === sId || (! (c as any).storeId && sId === 'store-demo-a'));
-    const suppliers = this.state.suppliers.filter(sup => (sup as any).storeId === sId || (! (sup as any).storeId && sId === 'store-demo-a'));
-    const cheques = this.state.cheques.filter(chq => (chq as any).storeId === sId || (! (chq as any).storeId && sId === 'store-demo-a'));
-    const cashRegisters = this.state.cashRegisters.filter(cr => (cr as any).storeId === sId || (! (cr as any).storeId && sId === 'store-demo-a'));
-    const withdrawals = this.state.withdrawals.filter(w => (w as any).storeId === sId || (! (w as any).storeId && sId === 'store-demo-a'));
-    const priceIncreaseLogs = this.state.priceIncreaseLogs.filter(log => (log as any).storeId === sId || (! (log as any).storeId && sId === 'store-demo-a'));
-    const stockMovements = this.state.stockMovements.filter(sm => (sm as any).storeId === sId || (! (sm as any).storeId && sId === 'store-demo-a'));
+    // Filter by storeId
+    const filterByStore = (arr: any[]) => arr?.filter(item => item.storeId === sId || (!item.storeId && sId === 'store-demo-a')) || [];
+
+    const products = filterByStore(this.state.products);
+    const sales = filterByStore(this.state.sales);
+    const customers = filterByStore(this.state.customers);
+    const customerTransactions = filterByStore(this.state.customerTransactions);
+    const suppliers = filterByStore(this.state.suppliers);
+    const cheques = filterByStore(this.state.cheques);
+    const cashRegisters = filterByStore(this.state.cashRegisters);
+    const withdrawals = filterByStore(this.state.withdrawals);
+    const priceIncreaseLogs = filterByStore(this.state.priceIncreaseLogs);
+    const stockMovements = filterByStore(this.state.stockMovements);
 
     const currentStore = (this.state.stores || []).find(st => st.id === sId);
 
@@ -74,606 +156,148 @@ export class DataService {
       products,
       sales,
       customers,
+      customerTransactions,
       suppliers,
       cheques,
       cashRegisters,
       withdrawals,
       priceIncreaseLogs,
       stockMovements,
-      users: isSuperAdmin ? this.state.users : this.state.users.filter(u => 
-        (u as any).storeId === sId || 
-        (! (u as any).storeId && sId === 'store-demo-a') || 
-        u.role === 'superadmin'
+      users: isSuperAdmin ? this.state.users : (this.state.users || []).filter(u => 
+        u.storeId === sId || (!u.storeId && sId === 'store-demo-a') || u.role === 'superadmin'
       )
     };
   }
 
   public static subscribe(listener: (state: AppState) => void): () => void {
     this.listeners.push(listener);
-    // Initial call
     listener(this.getState());
     return () => {
       this.listeners = this.listeners.filter(l => l !== listener);
     };
   }
 
-  private static notify() {
-    this.listeners.forEach(l => l(this.getState()));
+  public static setCurrentStoreId(storeId: string) {
+    this.currentStoreId = storeId;
+    localStorage.setItem('gc_store_id', storeId);
+    this.notify();
   }
 
-  public static isRealtimeConnected(): boolean {
-    return this.isConnected;
+  public static getCurrentStoreId(): string {
+    return this.currentStoreId;
   }
 
-  public static async init() {
-    // 1. Fetch initial state from server
-    try {
-      const res = await fetch('/api/data');
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          this.state = json.data;
-          this.notify();
-        }
-      }
-    } catch (err) {
-      console.warn('[DataService] Server API unavailable, using local fallback state.', err);
-    }
-
-    // 2. Connect to SSE for real-time multi-device sync
-    this.connectSSE();
-  }
-
-  private static connectSSE() {
-    if (typeof EventSource === 'undefined') return;
-
-    try {
-      this.eventSource = new EventSource('/api/events');
-
-      this.eventSource.onopen = () => {
-        this.isConnected = true;
-        console.log('[Realtime] Connected to SSE server.');
-        this.notify();
-      };
-
-      this.eventSource.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.type === 'FULL_SYNC' && payload.payload) {
-            this.state = payload.payload;
-          } else if (payload.type === 'STORE_INFO_UPDATED' && payload.payload) {
-            this.state = { ...this.state, storeInfo: payload.payload };
-          } else if (payload.type === 'STORES_UPDATED' && payload.payload) {
-            this.state = { ...this.state, stores: payload.payload };
-          } else if (payload.type === 'USERS_UPDATED' && payload.payload) {
-            this.state = { ...this.state, users: payload.payload };
-          } else if (payload.type === 'CASH_REGISTERS_UPDATED' && payload.payload) {
-            this.state = { ...this.state, cashRegisters: payload.payload };
-          } else if (payload.type === 'PRODUCTS_UPDATED' && payload.payload) {
-            this.state = { ...this.state, products: payload.payload };
-          } else if (payload.type === 'CUSTOMERS_UPDATED' && payload.payload) {
-            this.state = { ...this.state, customers: payload.payload };
-          } else if (payload.payload && payload.payload.state) {
-            this.state = payload.payload.state;
-          } else if (payload.payload && payload.payload.data) {
-            this.state = payload.payload.data;
-          } else {
-            // Re-fetch state
-            this.fetchLatest();
-          }
-          this.notify();
-        } catch (e) {
-          console.error('[Realtime] Parse error:', e);
-        }
-      };
-
-      this.eventSource.onerror = () => {
-        this.isConnected = false;
-        this.notify();
-        // EventSource handles automatic reconnection
-      };
-    } catch (e) {
-      console.warn('[Realtime] Failed to initialize SSE stream:', e);
-    }
-  }
-
-  public static async fetchLatest() {
-    try {
-      const res = await fetch('/api/data');
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          this.state = json.data;
-          this.notify();
-        }
-      }
-    } catch (err) {
-      console.error('[DataService] Fetch latest error:', err);
-    }
-  }
-
-  // --- ACTIONS ---
-
-  public static async saveProduct(product: Product): Promise<void> {
-    const itemWithStore = { ...product, storeId: (product as any).storeId || this.currentStoreId || 'store-demo-a' };
-    try {
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(itemWithStore)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          await this.fetchLatest();
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn('[DataService] Fallback to client state edit');
-    }
-
-    const index = this.state.products.findIndex(p => p.id === itemWithStore.id);
-    if (index >= 0) {
-      this.state.products[index] = itemWithStore;
+  public static setCurrentUserId(userId: string) {
+    this.currentUserId = userId;
+    if (userId) {
+      localStorage.setItem('gc_user_id', userId);
     } else {
-      this.state.products.unshift(itemWithStore);
+      localStorage.removeItem('gc_user_id');
     }
     this.notify();
   }
 
-  public static async deleteProduct(id: string): Promise<void> {
-    try {
-      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await this.fetchLatest();
-        return;
-      }
-    } catch (e) {}
+  public static getCurrentUserId(): string {
+    return this.currentUserId;
+  }
 
-    this.state.products = this.state.products.filter(p => p.id !== id);
+  public static setCurrentSession(storeId: string, userId: string) {
+    this.setCurrentStoreId(storeId);
+    this.setCurrentUserId(userId);
+  }
+
+  public static clearSession() {
+    this.setCurrentStoreId('store-demo-a');
+    this.setCurrentUserId('');
+  }
+
+  // Generic save function to Supabase
+  private static async saveToSupabase(table: string, data: any) {
+    try {
+      const { error } = await this.supabase.from(table).upsert(data);
+      if (error) throw error;
+      
+      // Update local memory optimistically
+      const list = (this.state as any)[table] as any[];
+      if (list) {
+        const idx = list.findIndex(item => item.id === data.id);
+        if (idx >= 0) list[idx] = data;
+        else list.push(data);
+        this.notify();
+      }
+    } catch (err) {
+      console.error(`Error saving to ${table}:`, err);
+      throw err;
+    }
+  }
+
+  public static async saveProduct(product: Product) {
+    await this.saveToSupabase('products', { ...product, storeId: this.currentStoreId });
+  }
+
+  public static async deleteProduct(productId: string) {
+    await this.supabase.from('products').delete().eq('id', productId);
+    this.state.products = this.state.products.filter(p => p.id !== productId);
     this.notify();
   }
 
-  public static async applyGlobalPriceIncrease(params: {
-    supplierId: string;
-    categoryFilter?: string;
-    percentage: number;
-    applyToCost: boolean;
-    applyToSale: boolean;
-    recalculateMargin: boolean;
-  }): Promise<{ affectedCount: number }> {
-    try {
-      const res = await fetch('/api/suppliers/increase-prices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          this.state = json.data;
-          this.notify();
-          return { affectedCount: json.affectedCount };
-        }
-      }
-    } catch (e) {}
+  public static async saveSale(sale: Sale) {
+    sale = { ...sale, storeId: this.currentStoreId } as any;
+    await this.saveToSupabase('sales', sale);
 
-    // Fallback client side implementation
-    const factor = 1 + params.percentage / 100;
-    let count = 0;
-    this.state.products = this.state.products.map(p => {
-      let match = true;
-      if (params.supplierId && params.supplierId !== 'ALL' && p.supplierId !== params.supplierId) match = false;
-      if (params.categoryFilter && params.categoryFilter !== 'ALL' && p.category !== params.categoryFilter) match = false;
-
-      if (match) {
-        count++;
-        let newCost = p.costPrice;
-        let newSale = p.salePrice;
-        if (params.applyToCost) newCost = Math.round(p.costPrice * factor);
-        if (params.applyToSale) {
-          if (params.recalculateMargin && params.applyToCost) {
-            const marginRatio = p.salePrice / (p.costPrice || 1);
-            newSale = Math.round(newCost * marginRatio);
-          } else {
-            newSale = Math.round(p.salePrice * factor);
-          }
-        }
-        return { ...p, costPrice: newCost, salePrice: newSale, updatedAt: new Date().toISOString() };
-      }
-      return p;
-    });
-
-    const supplierObj = this.state.suppliers.find(s => s.id === params.supplierId);
-    this.state.priceIncreaseLogs.unshift({
-      id: `inc-${Date.now()}`,
-      supplierId: params.supplierId,
-      supplierName: params.supplierId === 'ALL' ? 'Todos los Proveedores' : (supplierObj?.name || 'Proveedor'),
-      categoryFilter: params.categoryFilter,
-      percentage: params.percentage,
-      applyToCost: params.applyToCost,
-      applyToSale: params.applyToSale,
-      recalculateMargin: params.recalculateMargin,
-      affectedProductsCount: count,
-      date: new Date().toISOString()
-    });
-
-    this.notify();
-    return { affectedCount: count };
-  }
-
-  public static async processSale(sale: Sale): Promise<void> {
-    const saleWithStore: Sale = {
-      ...sale,
-      storeId: (sale as any).storeId || this.currentStoreId || 'store-demo-a'
-    } as any;
-
-    try {
-      const res = await fetch('/api/sales', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(saleWithStore)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          this.state = json.data;
-          this.notify();
-          return;
-        }
-      }
-    } catch (e) {}
-
-    // Client fallback
-    saleWithStore.items.forEach(item => {
+    // Also deduct stock for items
+    for (const item of sale.items) {
       const prod = this.state.products.find(p => p.id === item.productId);
       if (prod) {
-        prod.stock = prod.stock - item.quantity;
-      }
-    });
-    this.state.sales.unshift(saleWithStore);
-
-    const isCurrentAccountSale = saleWithStore.paymentMethod === 'current_account' || saleWithStore.invoiceType === 'REMITO';
-    if (isCurrentAccountSale && saleWithStore.customerId) {
-      const customer = this.state.customers.find(c => c.id === saleWithStore.customerId);
-      if (customer) {
-        customer.currentBalance += saleWithStore.totalAmount;
-        this.state.customerTransactions.unshift({
-          id: `tx-${Date.now()}`,
-          customerId: customer.id,
+        const prevStock = prod.stock;
+        prod.stock -= item.quantity;
+        await this.saveToSupabase('products', prod);
+        
+        await this.saveToSupabase('stockMovements', {
+          id: `sm-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          storeId: this.currentStoreId,
+          productId: prod.id,
+          productName: prod.name,
           type: 'sale',
-          amount: saleWithStore.totalAmount,
-          balanceAfter: customer.currentBalance,
-          date: saleWithStore.date,
-          description: `${saleWithStore.invoiceType === 'REMITO' ? 'Remito' : 'Venta'} ${saleWithStore.invoiceNumber} a Cuenta Corriente`,
-          saleId: saleWithStore.id,
-          storeId: (saleWithStore as any).storeId
-        } as any);
-      }
-    }
-
-    this.notify();
-  }
-
-  public static async annulSale(saleId: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const res = await fetch(`/api/sales/${saleId}/annul`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          this.state = json.data;
-          this.notify();
-          return { success: true };
-        }
-        return { success: false, error: json.error || 'Error al anular la venta' };
-      }
-    } catch (e) {}
-
-    // Fallback client-side
-    const sale = this.state.sales.find(s => s.id === saleId);
-    if (!sale) return { success: false, error: 'Venta no encontrada' };
-    if (sale.status === 'annulled') return { success: false, error: 'La venta ya se encuentra anulada' };
-
-    sale.status = 'annulled';
-
-    sale.items.forEach(item => {
-      const prod = this.state.products.find(p => p.id === item.productId);
-      if (prod) {
-        prod.stock += item.quantity;
-      }
-    });
-
-    if (sale.paymentMethod === 'current_account' && sale.customerId) {
-      const customer = this.state.customers.find(c => c.id === sale.customerId);
-      if (customer) {
-        customer.currentBalance = Math.max(0, customer.currentBalance - sale.totalAmount);
-        this.state.customerTransactions.unshift({
-          id: `tx-annul-${Date.now()}`,
-          customerId: customer.id,
-          type: 'adjustment',
-          amount: sale.totalAmount,
-          balanceAfter: customer.currentBalance,
-          date: new Date().toISOString(),
-          description: `ANULACIÓN Venta ${sale.invoiceNumber}`,
-          saleId: sale.id
+          quantity: item.quantity,
+          previousStock: prevStock,
+          newStock: prod.stock,
+          date: sale.date,
+          reason: `Venta ${sale.invoiceNumber}`
         });
       }
     }
-
-    this.notify();
-    return { success: true };
   }
 
-  public static async registerCustomerPayment(params: {
-    customerId: string;
-    amount: number;
-    paymentMethod: string;
-    notes?: string;
-  }): Promise<void> {
-    try {
-      const res = await fetch('/api/customers/payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          this.state = json.data;
-          this.notify();
-          return;
-        }
-      }
-    } catch (e) {}
-
-    const customer = this.state.customers.find(c => c.id === params.customerId);
-    if (customer) {
-      customer.currentBalance = Math.max(0, customer.currentBalance - params.amount);
-      this.state.customerTransactions.unshift({
-        id: `tx-${Date.now()}`,
-        customerId: customer.id,
-        type: 'payment',
-        amount: params.amount,
-        balanceAfter: customer.currentBalance,
-        date: new Date().toISOString(),
-        description: `Pago a Cta Cte (${params.paymentMethod}) ${params.notes || ''}`
-      });
-      this.notify();
-    }
+  public static async saveCustomer(customer: Customer) {
+    await this.saveToSupabase('customers', { ...customer, storeId: this.currentStoreId });
   }
 
-  public static async registerWithdrawal(withdrawal: CustomerWithdrawal): Promise<void> {
-    try {
-      const res = await fetch('/api/withdrawals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(withdrawal)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          this.state = json.data;
-          this.notify();
-          return;
-        }
-      }
-    } catch (e) {}
-
-    withdrawal.items.forEach(item => {
-      const prod = this.state.products.find(p => p.id === item.productId);
-      if (prod) {
-        prod.stock = Math.max(0, prod.stock - item.quantity);
-      }
-    });
-    this.state.withdrawals.unshift(withdrawal);
-    this.notify();
+  public static async saveCustomerTransaction(tx: CustomerTransaction) {
+    await this.saveToSupabase('customerTransactions', { ...tx, storeId: this.currentStoreId });
   }
 
-  public static async updateWithdrawalStatus(id: string, status: 'pending' | 'billed' | 'returned'): Promise<void> {
-    try {
-      const res = await fetch(`/api/withdrawals/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          await this.fetchLatest();
-          return;
-        }
-      }
-    } catch (e) {}
-
-    const item = this.state.withdrawals.find(w => w.id === id);
-    if (item) {
-      item.status = status;
-      this.notify();
-    }
+  public static async saveWithdrawal(withdrawal: CustomerWithdrawal) {
+    await this.saveToSupabase('withdrawals', { ...withdrawal, storeId: this.currentStoreId });
   }
 
-  public static async saveCashRegister(register: CashRegister): Promise<void> {
-    try {
-      const registerWithStore = { ...register, storeId: (register as any).storeId || this.currentStoreId || 'store-demo-a' };
-      const res = await fetch('/api/cash-registers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(registerWithStore)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          this.state.cashRegisters = json.data;
-          this.notify();
-        }
-      }
-    } catch (e) {
-      console.error('[DataService] Error saving cash register', e);
-    }
+  public static async saveCheque(cheque: Cheque) {
+    await this.saveToSupabase('cheques', { ...cheque, storeId: this.currentStoreId });
   }
 
-  public static async saveCheque(cheque: Cheque): Promise<void> {
-    try {
-      const res = await fetch('/api/cheques', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cheque)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          this.state = json.data;
-          this.notify();
-          return;
-        }
-      }
-    } catch (e) {}
-
-    const index = this.state.cheques.findIndex(c => c.id === cheque.id);
-    if (index >= 0) {
-      this.state.cheques[index] = cheque;
-    } else {
-      this.state.cheques.unshift(cheque);
-    }
-    this.notify();
+  public static async saveSupplier(supplier: Supplier) {
+    await this.saveToSupabase('suppliers', { ...supplier, storeId: this.currentStoreId });
   }
 
-  public static async saveCustomer(customer: Customer): Promise<void> {
-    try {
-      const res = await fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(customer)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          await this.fetchLatest();
-          return;
-        }
-      }
-    } catch (e) {}
-
-    const index = this.state.customers.findIndex(c => c.id === customer.id);
-    if (index >= 0) {
-      this.state.customers[index] = customer;
-    } else {
-      this.state.customers.unshift(customer);
-    }
-    this.notify();
+  public static async saveStoreInfo(info: StoreInfo) {
+    await this.saveToSupabase('storeInfo', { ...info, storeId: this.currentStoreId });
   }
 
-  public static async deleteCustomer(id: string): Promise<void> {
-    try {
-      const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await this.fetchLatest();
-        return;
-      }
-    } catch (e) {}
-
-    this.state.customers = this.state.customers.filter(c => c.id !== id);
-    this.notify();
+  public static async saveUser(user: SystemUser) {
+    await this.saveToSupabase('users', user);
   }
 
-  public static async saveSupplier(supplier: Supplier): Promise<void> {
-    const index = this.state.suppliers.findIndex(s => s.id === supplier.id);
-    if (index >= 0) {
-      this.state.suppliers[index] = supplier;
-    } else {
-      this.state.suppliers.unshift(supplier);
-    }
-    this.notify();
-  }
-
-  public static async updateStoreInfo(info: Partial<AppState['storeInfo']>): Promise<void> {
-    this.state.storeInfo = { ...this.state.storeInfo, ...info };
-    this.notify();
-    try {
-      await fetch('/api/store-info', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(info)
-      });
-    } catch (e) {
-      console.warn('Failed to persist store info on server, updated locally.', e);
-    }
-  }
-
-  public static async replaceProducts(products: Product[]): Promise<void> {
-    this.state.products = products;
-    this.notify();
-    try {
-      await fetch('/api/products/replace', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ products })
-      });
-    } catch (e) {
-      console.warn('Failed to persist replaced products on server, updated locally.', e);
-    }
-  }
-
-  public static async resetDemo(): Promise<void> {
-    try {
-      const res = await fetch('/api/reset-demo', { method: 'POST' });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          this.state = json.data;
-          this.notify();
-          return;
-        }
-      }
-    } catch (e) {}
-    this.state = JSON.parse(JSON.stringify(initialAppData));
-    this.notify();
-  }
-
-  public static async saveUser(user: SystemUser): Promise<{ success: boolean; error?: string }> {
-    try {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(user)
-      });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        this.state.users = json.data;
-        this.notify();
-        return { success: true };
-      }
-      return { success: false, error: json.error || 'Error al guardar el usuario' };
-    } catch (e) {
-      const index = this.state.users.findIndex(u => u.id === user.id);
-      if (index >= 0) {
-        this.state.users[index] = user;
-      } else {
-        this.state.users.unshift(user);
-      }
-      this.notify();
-      return { success: true };
-    }
-  }
-
-  public static async deleteUser(id: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        this.state.users = json.data;
-        this.notify();
-        return { success: true };
-      }
-      return { success: false, error: json.error || 'Error al eliminar el usuario' };
-    } catch (e) {
-      this.state.users = this.state.users.filter(u => u.id !== id);
-      this.notify();
-      return { success: true };
-    }
+  public static async saveCashRegister(register: CashRegister) {
+    await this.saveToSupabase('cashRegisters', { ...register, storeId: this.currentStoreId });
   }
 }
