@@ -224,7 +224,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
             </div>
           )}
 
-          <form onSubmit={handleSubmitLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
 
             {/* Username Input */}
             <div>
