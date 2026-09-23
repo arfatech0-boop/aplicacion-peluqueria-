@@ -280,7 +280,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ appState, setActiv
                     </div>
                     <p className="text-slate-700 font-medium">{w.customerName}</p>
                     <div className="flex items-center justify-between text-slate-500 pt-1 border-t border-slate-200/60">
-                      <span>{w.items.length} artículos</span>
+                      <span>{w.items?.length || 0} artículos</span>
                       <span className="font-bold text-indigo-600">${(w.totalAmount || 0).toLocaleString('es-AR')}</span>
                     </div>
                   </div>
