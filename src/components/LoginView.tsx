@@ -79,7 +79,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
     onLogin(user, storeId);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -88,10 +88,28 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
       return;
     }
 
-    const user = DataService.getUserByUsername(username);
+    let foundUser = DataService.getUserByUsername(username);
 
-    // Search user globally first to bind to their assigned storeId
-    const foundUser = user || (appState.users || []).find(u => u.username.toLowerCase() === username.trim().toLowerCase());
+    // Search user globally first
+    if (!foundUser) {
+      foundUser = (appState.users || []).find(u => u.username.toLowerCase() === username.trim().toLowerCase());
+    }
+
+    // Direct database fallback if state hasn't loaded yet
+    if (!foundUser) {
+      try {
+        const { data, error } = await DataService.supabase.from('users').select('*').eq('username', username.trim().toLowerCase());
+        if (error) {
+          console.error('Supabase query error:', error);
+        }
+        if (data && data.length > 0) {
+          foundUser = data[0];
+        }
+      } catch (e) {
+        console.error('Error fetching user fallback:', e);
+      }
+    }
+
     const targetStoreId = foundUser?.storeId || selectedStoreId;
 
     const selectedStore = stores.find(s => s.id === targetStoreId);

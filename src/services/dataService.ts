@@ -7,7 +7,7 @@ export class DataService {
   // Use the same SUPABASE_URL and SUPABASE_KEY from Vite env vars
   private static supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
   private static supabaseKey = import.meta.env.VITE_SUPABASE_KEY || '';
-  private static supabase: SupabaseClient = createClient(this.supabaseUrl, this.supabaseKey);
+  public static supabase: SupabaseClient = createClient(this.supabaseUrl, this.supabaseKey);
 
   private static currentStoreId: string = localStorage.getItem('gc_store_id') || 'store-demo-a';
   private static currentUserId: string = localStorage.getItem('gc_user_id') || '';
