@@ -639,7 +639,7 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-lg font-black text-indigo-600 tracking-tight">${product.salePrice.toLocaleString('es-AR')}</span>
+                    <span className="text-lg font-black text-indigo-600 tracking-tight">${(product.salePrice || 0).toLocaleString('es-AR')}</span>
                     <button
                       disabled={isOut}
                       className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center space-x-1.5 shadow-xs ${

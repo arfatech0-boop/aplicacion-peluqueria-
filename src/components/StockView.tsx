@@ -353,8 +353,8 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-slate-600">{supplierMap.get(prod.supplierId) || '-'}</td>
-                          <td className="px-4 py-3 text-right text-slate-600">${prod.costPrice.toLocaleString('es-AR')}</td>
-                          <td className="px-4 py-3 text-right font-bold text-slate-900">${prod.salePrice.toLocaleString('es-AR')}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">${(prod.costPrice || 0).toLocaleString('es-AR')}</td>
+                          <td className="px-4 py-3 text-right font-bold text-slate-900">${(prod.salePrice || 0).toLocaleString('es-AR')}</td>
                           <td className="px-4 py-3 text-center font-medium text-emerald-600">+{marginPct}%</td>
                           <td className="px-4 py-3 text-center">
                             <span className={`px-2 py-1 rounded text-xs font-extrabold inline-block min-w-[60px] ${
