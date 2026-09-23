@@ -15,6 +15,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { AppState, SystemUser, StoreAccount } from '../types';
+import { DataService } from '../services/dataService';
 
 interface LoginViewProps {
   appState: AppState;
