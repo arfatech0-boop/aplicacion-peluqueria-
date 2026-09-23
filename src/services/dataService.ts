@@ -169,6 +169,13 @@ export class DataService {
     };
   }
 
+  public static getUserByUsername(username: string): SystemUser | undefined {
+    return this.state.users.find(u => 
+      u.username.toLowerCase() === username.toLowerCase() || 
+      u.email?.toLowerCase() === username.toLowerCase()
+    );
+  }
+
   public static subscribe(listener: (state: AppState) => void): () => void {
     this.listeners.push(listener);
     listener(this.getState());

@@ -78,7 +78,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
     onLogin(user, storeId);
   };
 
-  const handleSubmitLogin = (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -87,8 +87,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
       return;
     }
 
+    const user = DataService.getUserByUsername(username);
+
     // Search user globally first to bind to their assigned storeId
-    const foundUser = (appState.users || []).find(u => u.username.toLowerCase() === username.trim().toLowerCase());
+    const foundUser = user || (appState.users || []).find(u => u.username.toLowerCase() === username.trim().toLowerCase());
     const targetStoreId = foundUser?.storeId || selectedStoreId;
 
     const selectedStore = stores.find(s => s.id === targetStoreId);
