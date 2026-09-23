@@ -245,7 +245,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ appState, setActiv
                           {sale.paymentMethod === 'current_account' ? 'Cuenta Corriente' : sale.paymentMethod}
                         </span>
                       </td>
-                      <td className="px-6 py-3.5 text-right font-bold text-slate-900">${sale.totalAmount.toLocaleString('es-AR')}</td>
+                      <td className="px-6 py-3.5 text-right font-bold text-slate-900">${(sale.totalAmount || 0).toLocaleString('es-AR')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -281,7 +281,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ appState, setActiv
                     <p className="text-slate-700 font-medium">{w.customerName}</p>
                     <div className="flex items-center justify-between text-slate-500 pt-1 border-t border-slate-200/60">
                       <span>{w.items.length} artículos</span>
-                      <span className="font-bold text-indigo-600">${w.totalAmount.toLocaleString('es-AR')}</span>
+                      <span className="font-bold text-indigo-600">${(w.totalAmount || 0).toLocaleString('es-AR')}</span>
                     </div>
                   </div>
                 ))}
