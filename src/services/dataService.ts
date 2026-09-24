@@ -43,6 +43,11 @@ export class DataService {
     await this.fetchAllData();
   }
 
+  public static isRealtimeConnected(): boolean {
+    // Currently always assuming true if initialized, since Supabase handles reconnects natively
+    return this.isInitialized;
+  }
+
   private static setupRealtimeSubscription() {
     this.supabase
       .channel('schema-db-changes')
