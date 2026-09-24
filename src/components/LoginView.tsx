@@ -99,6 +99,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
     if (!foundUser) {
       try {
         const { data, error } = await DataService.supabase.from('users').select('*').eq('username', username.trim().toLowerCase());
+        
         if (error) {
           console.error('Supabase query error:', error);
         }

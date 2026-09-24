@@ -241,3 +241,4 @@ CREATE TABLE "stockMovements" (
 
 -- ENABLE REALTIME ON ALL TABLES --
 alter publication supabase_realtime add table "stores", "storeInfo", "users", "products", "suppliers", "priceIncreaseLogs", "customers", "customerTransactions", "withdrawals", "sales", "cheques", "cashRegisters", "stockMovements";
+
