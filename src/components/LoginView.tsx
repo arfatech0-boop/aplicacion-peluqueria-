@@ -1,83 +1,27 @@
 import React, { useState } from 'react';
 import bcrypt from 'bcryptjs';
 import { 
-  Store, 
   Lock, 
   User, 
-  Building, 
   ArrowRight, 
-  ShieldCheck, 
-  CheckCircle2, 
-  PlusCircle, 
-  Sparkles,
   KeyRound,
   Eye,
   EyeOff
 } from 'lucide-react';
-import { AppState, SystemUser, StoreAccount } from '../types';
+import { AppState, SystemUser } from '../types';
 import { DataService } from '../services/dataService';
 
 interface LoginViewProps {
   appState: AppState;
   onLogin: (user: SystemUser, storeId: string) => void;
-  onCreateStore: (newStore: StoreAccount, adminUser: SystemUser) => void;
+  onCreateStore?: any; // Ignored for now
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreateStore }) => {
-  const [mode, setMode] = useState<'login' | 'register_store'>('login');
-  
-  // Login form state
-  const [selectedStoreId, setSelectedStoreId] = useState<string>(
-    appState.stores && appState.stores.length > 0 ? appState.stores[0].id : 'store-demo-a'
-  );
+export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-
-  // Register Store Form State
-  const [newStoreName, setNewStoreName] = useState('');
-  const [newStoreCuit, setNewStoreCuit] = useState('');
-  const [newStoreRubro, setNewStoreRubro] = useState('Comercio General / Multirrubro');
-  const [newAdminName, setNewAdminName] = useState('');
-  const [newAdminUsername, setNewAdminUsername] = useState('');
-  const [newAdminPassword, setNewAdminPassword] = useState('');
-
-  const stores = (appState.stores && appState.stores.length > 0) ? appState.stores : [
-    {
-      id: 'store-demo-a',
-      name: appState.storeInfo.name || 'Comercio Principal',
-      cuit: appState.storeInfo.cuit || '20-12345678-9',
-      businessType: appState.storeInfo.businessType || 'Comercio General / Multirrubro' as any,
-      address: appState.storeInfo.address || '',
-      phone: appState.storeInfo.phone || '',
-      email: appState.storeInfo.email || '',
-      active: true,
-      createdAt: new Date().toISOString()
-    }
-  ];
-
-  const handleQuickLogin = (storeId: string, demoUser: string, pass: string) => {
-    setSelectedStoreId(storeId);
-    setUsername(demoUser);
-    setPassword(pass);
-    setErrorMessage('');
-    
-    // Trigger login
-    const targetStoreUsers = appState.users.filter(u => u.storeId === storeId || !u.storeId);
-    const user = targetStoreUsers.find(u => u.username.toLowerCase() === demoUser.toLowerCase()) || {
-      id: `usr-${Date.now()}`,
-      storeId,
-      username: demoUser,
-      password: pass,
-      name: demoUser === 'admin' ? 'Administrador' : 'Don Pedro',
-      role: 'admin',
-      active: true,
-      createdAt: new Date().toISOString()
-    };
-
-    onLogin(user, storeId);
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,18 +55,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
       }
     }
 
-    const targetStoreId = foundUser?.storeId || selectedStoreId;
-
-    const selectedStore = stores.find(s => s.id === targetStoreId);
-
-    // Check store trial expiration
-    if (selectedStore?.isDemo && selectedStore.trialExpiresAt) {
-      if (new Date().getTime() > new Date(selectedStore.trialExpiresAt).getTime()) {
-        setErrorMessage('🛑 El período de prueba (7 días) ha finalizado para este comercio. Comuníquese con administración para habilitar el plan definitivo.');
-        return;
-      }
-    }
-
     if (foundUser) {
       if (!foundUser.active) {
         setErrorMessage('🛑 Este usuario ha sido desactivado por administración.');
@@ -132,7 +64,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
       // Check user trial expiration
       if (foundUser.isDemo && foundUser.trialExpiresAt) {
         if (new Date().getTime() > new Date(foundUser.trialExpiresAt).getTime()) {
-          setErrorMessage('🛑 El período de prueba de 7 días ha vencido. Póngase en contacto con administración para activar la cuenta.');
+          setErrorMessage('🛑 El período de prueba ha vencido. Póngase en contacto con administración.');
           return;
         }
       }
@@ -154,45 +86,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
         setErrorMessage('Contraseña incorrecta. Por favor intente nuevamente.');
         return;
       }
-      onLogin(foundUser, targetStoreId);
+      onLogin(foundUser, foundUser.storeId || 'store-demo-a');
     } else {
       setErrorMessage('Usuario no encontrado. Pida al administrador que le cree una cuenta.');
       return;
     }
-  };
-
-  const handleRegisterStoreSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newStoreName.trim() || !newAdminUsername.trim()) {
-      setErrorMessage('Por favor complete los campos obligatorios del nuevo comercio.');
-      return;
-    }
-
-    const newStoreId = `store-${Date.now()}`;
-    const newStore: StoreAccount = {
-      id: newStoreId,
-      name: newStoreName.trim(),
-      cuit: newStoreCuit.trim() || '20-00000000-0',
-      businessType: newStoreRubro as any,
-      address: 'Dirección Comercial',
-      phone: '11 0000-0000',
-      email: `${newAdminUsername}@comercio.com`,
-      active: true,
-      createdAt: new Date().toISOString()
-    };
-
-    const newAdmin: SystemUser = {
-      id: `usr-${Date.now()}`,
-      storeId: newStoreId,
-      username: newAdminUsername.trim(),
-      password: newAdminPassword || '123456',
-      name: newAdminName.trim() || newAdminUsername.trim(),
-      role: 'admin',
-      active: true,
-      createdAt: new Date().toISOString()
-    };
-
-    onCreateStore(newStore, newAdmin);
   };
 
   return (
@@ -200,28 +98,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
       {/* Background Animated Glow Gradients */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-emerald-600/20 rounded-full blur-[140px] pointer-events-none" />
-
-      {/* Top Navbar Header */}
-      <header className="px-6 py-4 flex items-center justify-between z-10 border-b border-slate-800/60 backdrop-blur-md bg-slate-950/40">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
-            <Store className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="font-black text-lg text-white tracking-tight flex items-center gap-2">
-              GestiónComercio <span className="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full font-bold border border-indigo-500/30">SaaS Multi-Comercio</span>
-            </h1>
-            <p className="text-[11px] text-slate-400">Plataforma de Control Comercial & Punto de Venta Aislado</p>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-2 text-xs">
-          <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Aislamiento 100% Garantizado</span>
-          </span>
-        </div>
-      </header>
 
       {/* Main Form Box Container */}
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6 z-10 my-6">
@@ -245,7 +121,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
-
             {/* Username Input */}
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center space-x-1.5">
@@ -300,7 +175,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin, onCreat
 
       {/* Footer info */}
       <footer className="py-3 text-center text-[11px] text-slate-500 z-10 border-t border-slate-900 bg-slate-950">
-        GestiónComercio Pro SaaS &copy; 2026 - Aisle de datos por `storeId` para venta comercial.
+        ArFaTech &copy; 2026 - Aisle de datos por `storeId` para venta comercial.
       </footer>
     </div>
   );
