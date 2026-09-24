@@ -1,12 +1,14 @@
 import { createClient, SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
 import { AppState, CashRegister, Cheque, Customer, CustomerTransaction, CustomerWithdrawal, GlobalPriceIncreaseLog, Product, Sale, StockMovement, StoreAccount, StoreInfo, Supplier, SystemUser } from '../types';
 
+import { SUPABASE_URL, SUPABASE_KEY } from '../config';
+
 export class DataService {
   private static listeners: ((state: AppState) => void)[] = [];
   
   // Use the same SUPABASE_URL and SUPABASE_KEY from Vite env vars
-  private static supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  private static supabaseKey = import.meta.env.VITE_SUPABASE_KEY || '';
+  private static supabaseUrl = import.meta.env.VITE_SUPABASE_URL || SUPABASE_URL;
+  private static supabaseKey = import.meta.env.VITE_SUPABASE_KEY || SUPABASE_KEY;
   public static supabase: SupabaseClient = createClient(this.supabaseUrl, this.supabaseKey);
 
   private static currentStoreId: string = localStorage.getItem('gc_store_id') || 'store-demo-a';
