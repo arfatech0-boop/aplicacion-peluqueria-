@@ -55,7 +55,18 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     setErrorMsg('');
     setSuccessMsg('');
 
-    const res = await DataService.saveUser(editingUser as SystemUser);
+    const userToSave = { ...editingUser } as SystemUser;
+    
+    // If it's a new user, assign storeId based on isolation choice
+    if (!userToSave.storeId) {
+      if ((editingUser as any).isIsolatedClient) {
+        userToSave.storeId = `store-${Date.now()}`;
+      } else {
+        userToSave.storeId = DataService.getCurrentStoreId() || 'store-demo-a';
+      }
+    }
+
+    const res = await DataService.saveUser(userToSave);
 
     if (res.success) {
       setSuccessMsg('¡Usuario guardado correctamente!');
@@ -314,6 +325,26 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                     <option value="admin">Administrador (Acceso Total + Configuración)</option>
                   </select>
                 </div>
+
+                {!editingUser.storeId && (
+                  <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
+                    <label className="flex items-start space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={(editingUser as any).isIsolatedClient || false}
+                        onChange={e => setEditingUser({ ...editingUser, isIsolatedClient: e.target.checked } as any)}
+                        className="w-5 h-5 mt-0.5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                      />
+                      <div>
+                        <span className="font-bold text-indigo-900 block text-xs">Crear como Cliente Aislado (SaaS)</span>
+                        <span className="text-[10px] text-indigo-700 leading-tight block mt-0.5">
+                          Si activás esto, el usuario tendrá una base de datos propia en 0 (sin tus productos ni caja). 
+                          Si no lo activás, será un empleado/cajero de tu mismo comercio.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                )}
 
                 <div className="pt-1">
                   <label className="flex items-center space-x-2 cursor-pointer font-bold text-slate-800">
