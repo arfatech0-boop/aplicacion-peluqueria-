@@ -62,7 +62,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       if ((editingUser as any).isIsolatedClient) {
         userToSave.storeId = `store-${Date.now()}`;
       } else {
-        userToSave.storeId = DataService.getCurrentStoreId() || 'store-demo-a';
+        userToSave.storeId = DataService.getCurrentStoreId() || `store-${Date.now()}`;
       }
     }
 

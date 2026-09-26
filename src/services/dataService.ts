@@ -132,7 +132,12 @@ export class DataService {
     const isSuperAdmin = this.state.users?.find(u => u.id === this.currentUserId)?.role === 'superadmin';
     
     // Filter by storeId
-    const filterByStore = (arr: any[]) => arr?.filter(item => item.storeId === sId || (!item.storeId && sId === 'store-demo-a')) || [];
+    const filterByStore = (arr: any[]) => arr?.filter(item => {
+      if (!sId) return false;
+      if (item.storeId === sId) return true;
+      if (!item.storeId && sId === 'store-demo-a') return true;
+      return false;
+    }) || [];
 
     const products = filterByStore(this.state.products);
     const sales = filterByStore(this.state.sales);
@@ -171,7 +176,7 @@ export class DataService {
       priceIncreaseLogs,
       stockMovements,
       users: isSuperAdmin ? this.state.users : (this.state.users || []).filter(u => 
-        u.storeId === sId || (!u.storeId && sId === 'store-demo-a') || u.role === 'superadmin'
+        (sId && u.storeId === sId) || (!u.storeId && sId === 'store-demo-a') || u.role === 'superadmin'
       )
     };
   }

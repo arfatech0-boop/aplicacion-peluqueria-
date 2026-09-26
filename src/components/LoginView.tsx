@@ -86,7 +86,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin }) => {
         setErrorMessage('Contraseña incorrecta. Por favor intente nuevamente.');
         return;
       }
-      onLogin(foundUser, foundUser.storeId || 'store-demo-a');
+      onLogin(foundUser, foundUser.storeId || `store-${foundUser.id}`);
     } else {
       setErrorMessage('Usuario no encontrado. Pida al administrador que le cree una cuenta.');
       return;
