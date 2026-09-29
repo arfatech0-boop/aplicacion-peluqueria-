@@ -105,18 +105,24 @@ export default function App() {
       users: updatedUsers
     }));
     
+    await DataService.saveStore(newStore);
     await DataService.saveUser(adminUser);
-    
-    try {
-      // Sync the new store to the server (avoiding /api/sync to prevent state wipe)
-      await fetch('/api/stores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newStore)
-      });
-    } catch (e) {
-      console.warn('Failed to sync new store to server', e);
-    }
+    await DataService.saveStoreInfo({
+      storeId: newStore.id,
+      name: newStore.name,
+      cuit: newStore.cuit,
+      businessType: newStore.businessType,
+      customCategories: ['General'],
+      currencySymbol: '$',
+      invoicePrefix: '0001',
+      defaultTaxRate: 21,
+      cashDiscountPercent: 5,
+      cardSurchargePercent: 10,
+      defaultCounterInvoiceType: 'FACTURA_B',
+      defaultCurrentAccountInvoiceType: 'REMITO',
+      defaultRespInscriptoInvoiceType: 'FACTURA_A',
+      afipPointOfSale: '0001'
+    });
 
     handleLogin(adminUser, newStore.id);
   };

@@ -1,0 +1,16 @@
+{
+  "short_name": "Gestión Comercio",
+  "name": "ArFaTech App - Gestión Comercial & POS",
+  "icons": [
+    {
+      "src": "/assets/pos_system_guide_1786205109803-B3ZdXtvx.jpg",
+      "type": "image/jpeg",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "display": "standalone",
+  "orientation": "any"
+}

@@ -94,12 +94,27 @@ export const ClientManagementModal: React.FC<ClientManagementModalProps> = ({
     };
 
     try {
-      await fetch('/api/stores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newStore)
-      });
+      await DataService.saveStore(newStore);
       await DataService.saveUser(newUser);
+      await DataService.saveStoreInfo({
+        storeId: newStoreId,
+        name: newStore.name,
+        cuit: newStore.cuit,
+        businessType: newStore.businessType,
+        address: '',
+        phone: '',
+        email: newStore.email,
+        customCategories: ['General'],
+        currencySymbol: '$',
+        invoicePrefix: '0001',
+        defaultTaxRate: 21,
+        cashDiscountPercent: 5,
+        cardSurchargePercent: 10,
+        defaultCounterInvoiceType: 'FACTURA_B',
+        defaultCurrentAccountInvoiceType: 'REMITO',
+        defaultRespInscriptoInvoiceType: 'FACTURA_A',
+        afipPointOfSale: '0001'
+      });
       
       setSuccessMsg(`¡Comercio "${newStoreName}" y su administrador creados exitosamente!`);
       setIsFormOpen(false);

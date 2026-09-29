@@ -11,7 +11,8 @@ import {
   Receipt,
   Tag,
   Briefcase,
-  PackageCheck
+  PackageCheck,
+  AlertCircle
 } from 'lucide-react';
 import { StoreInfo, BusinessRubro, TaxCondition, InvoiceType } from '../types';
 import { DataService } from '../services/dataService';
@@ -144,6 +145,8 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
   const [newCatInput, setNewCatInput] = useState('');
   const [activeTab, setActiveTab] = useState<'profile' | 'rubro' | 'categories'>('profile');
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [presetNotice, setPresetNotice] = useState<string | null>(null);
   const [shouldReplaceCatalog, setShouldReplaceCatalog] = useState<boolean>(false);
   const [catalogLoadedNotice, setCatalogLoadedNotice] = useState<string | null>(null);
@@ -174,6 +177,7 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
       setPresetNotice(null);
       setCatalogLoadedNotice(null);
       setShouldReplaceCatalog(false);
+      setErrorMessage(null);
     }
   }, [isOpen, storeInfo]);
 
@@ -190,11 +194,20 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
   };
 
   const handleLoadCatalogNow = async () => {
-    const catalog = getCatalogForRubro(formData.businessType);
-    await DataService.updateStoreInfo(formData);
-    await DataService.replaceProducts(catalog);
-    setCatalogLoadedNotice(`¡Catálogo de "${formData.businessType}" reemplazado con éxito (${catalog.length} productos de ejemplo cargados)!`);
-    setShouldReplaceCatalog(false);
+    try {
+      setIsSaving(true);
+      setErrorMessage(null);
+      const catalog = getCatalogForRubro(formData.businessType);
+      await DataService.updateStoreInfo(formData);
+      await DataService.replaceProducts(catalog);
+      setCatalogLoadedNotice(`¡Catálogo de "${formData.businessType}" reemplazado con éxito (${catalog.length} productos de ejemplo cargados)!`);
+      setShouldReplaceCatalog(false);
+    } catch (err: any) {
+      console.error('Error al cargar catálogo:', err);
+      setErrorMessage(err?.message || 'Error al cargar catálogo de rubro.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAddCategory = () => {
@@ -219,13 +232,47 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
   const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('La imagen del logo es demasiado grande (máximo 2MB).');
+      if (!file.type.startsWith('image/')) {
+        setErrorMessage('Por favor seleccione un archivo de imagen válido (JPG, PNG, WEBP).');
         return;
       }
+
+      setErrorMessage(null);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, logoUrl: reader.result as string }));
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          // Auto-compress large phone camera photos
+          const MAX_DIM = 600;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > MAX_DIM || height > MAX_DIM) {
+            if (width > height) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            } else {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.85);
+            setFormData(prev => ({ ...prev, logoUrl: compressed }));
+          } else {
+            setFormData(prev => ({ ...prev, logoUrl: event.target?.result as string }));
+          }
+        };
+        img.onerror = () => {
+          setErrorMessage('No se pudo procesar la imagen seleccionada.');
+        };
+        img.src = event.target?.result as string;
       };
       reader.readAsDataURL(file);
     }
@@ -233,31 +280,55 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    await DataService.updateStoreInfo(formData);
+    setErrorMessage(null);
 
-    if (shouldReplaceCatalog) {
-      const catalog = getCatalogForRubro(formData.businessType);
-      await DataService.replaceProducts(catalog);
+    const cleanName = (formData.name || '').trim();
+    if (!cleanName) {
+      setActiveTab('profile');
+      setErrorMessage('Por favor ingrese el Nombre Fantasía o Razón Social del comercio.');
+      return;
     }
 
-    setIsSaved(true);
-    setTimeout(() => {
-      setIsSaved(false);
-      onClose();
-    }, 1200);
+    const cleanCuit = (formData.cuit || '').trim();
+    if (!cleanCuit) {
+      setActiveTab('profile');
+      setErrorMessage('Por favor ingrese el CUIT / ID Fiscal del comercio.');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await DataService.updateStoreInfo(formData);
+
+      if (shouldReplaceCatalog) {
+        const catalog = getCatalogForRubro(formData.businessType);
+        await DataService.replaceProducts(catalog);
+      }
+
+      setIsSaved(true);
+      setTimeout(() => {
+        setIsSaved(false);
+        onClose();
+      }, 1200);
+    } catch (err: any) {
+      console.error('Error al guardar configuración:', err);
+      setErrorMessage(err?.message || 'Error al guardar la configuración en la base de datos.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[94vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between">
+        <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-indigo-600/30 rounded-xl border border-indigo-500/30 text-indigo-400">
               <Store className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-black tracking-tight">Configuración del Comercio</h2>
+              <h2 className="text-base sm:text-lg font-black tracking-tight">Configuración del Comercio</h2>
               <p className="text-xs text-slate-400">Datos fiscales, logotipo de facturación, rubro y categorías</p>
             </div>
           </div>
@@ -270,11 +341,11 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
         </div>
 
         {/* Modal Nav Tabs */}
-        <div className="grid grid-cols-3 gap-2 p-2.5 bg-slate-100 border-b border-slate-200">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 p-2 sm:p-2.5 bg-slate-100 border-b border-slate-200 flex-shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
-            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-2 ${
+            className={`py-2 px-2 sm:px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 sm:space-x-2 ${
               activeTab === 'profile'
                 ? 'bg-white text-indigo-700 shadow-xs border border-indigo-200 font-extrabold'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -287,7 +358,7 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
           <button
             type="button"
             onClick={() => setActiveTab('rubro')}
-            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-2 ${
+            className={`py-2 px-2 sm:px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 sm:space-x-2 ${
               activeTab === 'rubro'
                 ? 'bg-white text-indigo-700 shadow-xs border border-indigo-200 font-extrabold'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -300,19 +371,27 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
           <button
             type="button"
             onClick={() => setActiveTab('categories')}
-            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-2 ${
+            className={`py-2 px-2 sm:px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 sm:space-x-2 ${
               activeTab === 'categories'
                 ? 'bg-white text-indigo-700 shadow-xs border border-indigo-200 font-extrabold'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <Tag className="w-4 h-4 flex-shrink-0 text-indigo-600" />
-            <span className="truncate">Categorías de Productos</span>
+            <span className="truncate">Categorías</span>
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSave} className="p-5 space-y-6 max-h-[70vh] overflow-y-auto">
+        <form onSubmit={handleSave} noValidate className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 p-4 sm:p-5 space-y-5 overflow-y-auto">
+            {/* Visual Error Message banner */}
+            {errorMessage && (
+              <div className="p-3.5 bg-red-50 border border-red-300 rounded-xl flex items-center space-x-2.5 text-xs text-red-800 font-bold shadow-xs">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
           {/* TAB 1: DATOS DEL NEGOCIO */}
           {activeTab === 'profile' && (
             <div className="space-y-4">
@@ -372,7 +451,6 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
                   </label>
                   <input
                     type="text"
-                    required
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Ej. Ferretería Central / Supermercado El Sol"
@@ -386,7 +464,6 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
                   </label>
                   <input
                     type="text"
-                    required
                     value={formData.cuit}
                     onChange={e => setFormData({ ...formData, cuit: e.target.value })}
                     placeholder="Ej. 30-71234567-8"
@@ -459,7 +536,7 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
                   Email de Contacto
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
                   placeholder="contacto@comercio.com"
@@ -634,26 +711,34 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
               </div>
             </div>
           )}
+          </div>
 
-          {/* Footer Save Button */}
-          <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-            <div className="text-xs text-slate-500">
-              Rubro activo: <strong className="text-slate-800">{formData.businessType}</strong>
+          {/* Footer Save Button - Sticky and always visible on mobile and desktop */}
+          <div className="p-3 sm:p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 flex-shrink-0">
+            <div className="text-[11px] sm:text-xs text-slate-500 truncate max-w-[40%] sm:max-w-[50%]">
+              Rubro: <strong className="text-slate-800">{formData.businessType}</strong>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors"
+                disabled={isSaving}
+                className="px-3.5 sm:px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-extrabold shadow-md flex items-center space-x-2 transition-colors"
+                disabled={isSaving}
+                className="px-4 sm:px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-md flex items-center space-x-2 transition-all disabled:opacity-50 cursor-pointer"
               >
-                {isSaved ? (
+                {isSaving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Guardando...</span>
+                  </>
+                ) : isSaved ? (
                   <>
                     <CheckCircle2 className="w-4 h-4 text-white animate-bounce" />
                     <span>¡Guardado con Éxito!</span>
