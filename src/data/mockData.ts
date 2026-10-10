@@ -475,6 +475,16 @@ export const initialAppData: AppState = {
       storeId: "store-lafinca",
       active: true,
       createdAt: new Date().toISOString()
+    },
+    {
+      id: "user-cliente1",
+      username: "cliente1",
+      password: "123456",
+      name: "Cliente 1",
+      role: "admin",
+      storeId: "store-cliente1",
+      active: true,
+      createdAt: new Date().toISOString()
     }
   ]
 };
