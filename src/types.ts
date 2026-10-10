@@ -230,6 +230,12 @@ export interface StoreInfo {
   defaultCurrentAccountInvoiceType?: InvoiceType;
   defaultRespInscriptoInvoiceType?: InvoiceType;
   afipPointOfSale?: string;
+  afipEnvironment?: 'testing' | 'production';
+  afipCrt?: string;
+  afipKey?: string;
+  afipEnabled?: boolean;
+  afipLastConnectionStatus?: 'connected' | 'error' | 'not_configured';
+  afipLastConnectionCheck?: string;
   cardInterestPlans?: CardInterestPlan[];
 }
 
