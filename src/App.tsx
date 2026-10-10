@@ -202,17 +202,15 @@ export default function App() {
               </button>
             )}
 
-            {/* Rubro Badge */}
-            {currentUser.role === 'admin' && (
-              <button
-                onClick={() => setSettingsOpen(true)}
-                className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all text-xs font-bold border border-slate-700 shadow-xs"
-                title="Ajustar Rubro o Tipo de Comercio"
-              >
-                <Settings className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{appState.storeInfo.businessType || 'Boutique & Indumentaria'}</span>
-              </button>
-            )}
+            {/* Rubro & AFIP Settings Badge */}
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all text-xs font-bold border border-slate-700 shadow-xs"
+              title="Ajustar Rubro o Facturación AFIP"
+            >
+              <Settings className="w-3.5 h-3.5 text-indigo-400" />
+              <span>{appState.storeInfo.businessType || 'Boutique & Indumentaria'}</span>
+            </button>
 
             {lowStockCount > 0 && (
               <button

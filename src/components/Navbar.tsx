@@ -319,14 +319,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {onOpenSettings && currentUser?.role === 'admin' && (
+          {onOpenSettings && (
             <button
               onClick={onOpenSettings}
               className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-slate-300 hover:text-white text-xs font-bold transition-all"
             >
               <div className="flex items-center space-x-2">
                 <Building2 className="w-4 h-4 text-indigo-400" />
-                <span>Ajustes & Rubro</span>
+                <span>Ajustes, Datos & AFIP</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
             </button>
