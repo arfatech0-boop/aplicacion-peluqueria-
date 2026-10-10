@@ -443,7 +443,7 @@ export const initialAppData: AppState = {
       username: "admin",
       password: "123",
       name: "Administrador Principal",
-      role: "admin",
+      role: "superadmin",
       active: true,
       createdAt: "2026-08-01T00:00:00.000Z"
     },
@@ -452,7 +452,7 @@ export const initialAppData: AppState = {
       username: "facu123",
       password: "12345",
       name: "Facundo (Personal)",
-      role: "admin",
+      role: "superadmin",
       active: true,
       createdAt: new Date().toISOString()
     },
