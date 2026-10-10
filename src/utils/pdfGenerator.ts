@@ -845,14 +845,14 @@ export const generateQuotationPDF = (quote: QuotationData, storeInfo: StoreInfo)
     item.code || '-',
     item.quantity.toFixed(2),
     item.description,
-    `$ ${item.unitPrice.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    `$${item.unitPrice.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     `${item.discountPercent || 0}%`,
-    `$ ${item.totalPrice.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    `$${item.totalPrice.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   ]);
 
   autoTable(doc, {
     startY: clientBoxY + 18,
-    head: [['CÓDIGO', 'CANTIDAD', 'DESCRIPCIÓN', 'PRECIO UNIT', 'DESC.', 'PRECIO TOTAL']],
+    head: [['CÓDIGO', 'CANT.', 'DESCRIPCIÓN', 'PRECIO UNIT.', 'DESC.', 'PRECIO TOTAL']],
     body: tableData,
     headStyles: {
       fillColor: [255, 255, 255],
@@ -865,16 +865,16 @@ export const generateQuotationPDF = (quote: QuotationData, storeInfo: StoreInfo)
       fillColor: [255, 255, 255],
       textColor: [15, 23, 42],
       fontSize: 8,
-      cellPadding: 3,
+      cellPadding: 2.5,
       lineWidth: 0
     },
     columnStyles: {
-      0: { cellWidth: 28 },
-      1: { cellWidth: 22, halign: 'center' },
-      2: { cellWidth: 68 },
-      3: { cellWidth: 25, halign: 'right' },
+      0: { cellWidth: 26 },
+      1: { cellWidth: 15, halign: 'center' },
+      2: { cellWidth: 57 },
+      3: { cellWidth: 35, halign: 'right' },
       4: { cellWidth: 15, halign: 'center' },
-      5: { cellWidth: 24, halign: 'right' }
+      5: { cellWidth: 34, halign: 'right' }
     },
     didDrawCell: (data) => {
       if (data.section === 'head') {
