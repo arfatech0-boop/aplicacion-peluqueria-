@@ -127,13 +127,13 @@ export const generateSaleInvoicePDF = (sale: Sale, storeInfo: StoreInfo) => {
     alternateRowStyles: { fillColor: [248, 250, 252] },
     styles: { fontSize: 8.5, cellPadding: 3.5, textColor: [51, 65, 85] },
     columnStyles: {
-      0: { cellWidth: 32 },
-      1: { cellWidth: 68 },
-      2: { cellWidth: 15, halign: 'center' },
-      3: { cellWidth: 15, halign: 'center' },
-      4: { cellWidth: 24, halign: 'right' },
-      5: { cellWidth: 14, halign: 'center' },
-      6: { cellWidth: 24, halign: 'right' }
+      0: { cellWidth: 26 },
+      1: { cellWidth: 60 },
+      2: { cellWidth: 12, halign: 'center' },
+      3: { cellWidth: 12, halign: 'center' },
+      4: { cellWidth: 32, halign: 'right' },
+      5: { cellWidth: 12, halign: 'center' },
+      6: { cellWidth: 28, halign: 'right' }
     }
   });
 
@@ -141,57 +141,57 @@ export const generateSaleInvoicePDF = (sale: Sale, storeInfo: StoreInfo) => {
 
   // Totals Summary Box (Right Aligned Card)
   doc.setFillColor(241, 245, 249);
-  doc.roundedRect(116, finalY, 80, isFacturaA ? 38 : 30, 3, 3, 'F');
+  doc.roundedRect(106, finalY, 90, isFacturaA ? 40 : 32, 3, 3, 'F');
 
   if (isFacturaA) {
     const netoGravado = Math.round((sale.totalAmount / 1.21) * 100) / 100;
     const totalIva = Math.round((sale.totalAmount - netoGravado) * 100) / 100;
 
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 65, 85);
+    doc.text(`Subtotal Neto Gravado:`, 110, finalY + 8);
+    doc.text(`$${netoGravado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 192, finalY + 8, { align: 'right' });
+
+    doc.text(`IVA (21.00%):`, 110, finalY + 16);
+    doc.text(`$${totalIva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 192, finalY + 16, { align: 'right' });
+
+    if (sale.discount > 0) {
+      doc.text(`Descuento Aplicado:`, 110, finalY + 24);
+      doc.text(`-$${sale.discount.toLocaleString('es-AR')}`, 192, finalY + 24, { align: 'right' });
+    }
+
+    doc.setFontSize(10.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(`TOTAL FACTURADO:`, 110, finalY + 34);
+    doc.text(`$${sale.totalAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 192, finalY + 34, { align: 'right' });
+  } else {
+    let currentY = finalY + 9;
     doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(51, 65, 85);
-    doc.text(`Subtotal Neto Gravado:`, 122, finalY + 8);
-    doc.text(`$${netoGravado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 190, finalY + 8, { align: 'right' });
-
-    doc.text(`IVA (21.00%):`, 122, finalY + 16);
-    doc.text(`$${totalIva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 190, finalY + 16, { align: 'right' });
-
-    if (sale.discount > 0) {
-      doc.text(`Descuento Aplicado:`, 122, finalY + 24);
-      doc.text(`-$${sale.discount.toLocaleString('es-AR')}`, 190, finalY + 24, { align: 'right' });
-    }
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(15, 23, 42);
-    doc.text(`TOTAL FACTURADO:`, 122, finalY + 34);
-    doc.text(`$${sale.totalAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 190, finalY + 34, { align: 'right' });
-  } else {
-    let currentY = finalY + 9;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(51, 65, 85);
-    doc.text(`Subtotal:`, 122, currentY);
-    doc.text(`$${sale.subtotal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 190, currentY, { align: 'right' });
+    doc.text(`Subtotal:`, 110, currentY);
+    doc.text(`$${sale.subtotal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 192, currentY, { align: 'right' });
 
     if (sale.discount > 0) {
       currentY += 6;
-      doc.text(`Descuento:`, 122, currentY);
-      doc.text(`-$${sale.discount.toLocaleString('es-AR')}`, 190, currentY, { align: 'right' });
+      doc.text(`Descuento:`, 110, currentY);
+      doc.text(`-$${sale.discount.toLocaleString('es-AR')}`, 192, currentY, { align: 'right' });
     }
 
     if (sale.surcharge && sale.surcharge > 0) {
       currentY += 6;
-      doc.text(`Recargo Tarjeta:`, 122, currentY);
-      doc.text(`+$${sale.surcharge.toLocaleString('es-AR')}`, 190, currentY, { align: 'right' });
+      doc.text(`Recargo Tarjeta:`, 110, currentY);
+      doc.text(`+$${sale.surcharge.toLocaleString('es-AR')}`, 192, currentY, { align: 'right' });
     }
 
     currentY += 10;
-    doc.setFontSize(12);
+    doc.setFontSize(10.5);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
-    doc.text(`TOTAL:`, 122, currentY);
-    doc.text(`$${sale.totalAmount.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 190, currentY, { align: 'right' });
+    doc.text(`TOTAL:`, 110, currentY);
+    doc.text(`$${sale.totalAmount.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, 192, currentY, { align: 'right' });
   }
 
   // AFIP Footer CAE & QR Box
