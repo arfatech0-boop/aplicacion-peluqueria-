@@ -190,8 +190,8 @@ export default function App() {
               </button>
             )}
 
-            {/* User Management Button (Admin only) */}
-            {(currentUser.role === 'admin' || currentUser.role === 'superadmin') && (
+            {/* User Management Button (Super Admin / Master only) */}
+            {(currentUser.role === 'superadmin' || currentUser.username === 'admin' || currentUser.username === 'facu123') && (
               <button
                 onClick={() => setUsersModalOpen(true)}
                 className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors text-xs font-bold shadow-xs"

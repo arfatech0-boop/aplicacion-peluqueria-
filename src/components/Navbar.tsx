@@ -293,7 +293,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Bottom Sync & Settings Footer */}
         <div className="p-3 border-t border-slate-800/80 bg-slate-950/40 space-y-2">
-          {onOpenUserManagement && currentUser?.role === 'admin' && (
+          {onOpenUserManagement && (currentUser?.role === 'superadmin' || currentUser?.username === 'admin' || currentUser?.username === 'facu123') && (
             <button
               onClick={onOpenUserManagement}
               className="w-full flex items-center justify-between p-2 rounded-lg bg-purple-950/70 hover:bg-purple-900 border border-purple-700/60 text-purple-200 hover:text-white text-xs font-bold transition-all shadow-xs"
