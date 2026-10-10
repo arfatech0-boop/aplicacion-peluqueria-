@@ -455,6 +455,26 @@ export const initialAppData: AppState = {
       role: "admin",
       active: true,
       createdAt: new Date().toISOString()
+    },
+    {
+      id: "user-kioscomate",
+      username: "kioscomate",
+      password: "kioscomateo2026",
+      name: "Kiosco Mate",
+      role: "admin",
+      storeId: "store-kioscomate",
+      active: true,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "user-lafinca",
+      username: "lafinca",
+      password: "123456",
+      name: "La Finca",
+      role: "admin",
+      storeId: "store-lafinca",
+      active: true,
+      createdAt: new Date().toISOString()
     }
   ]
 };

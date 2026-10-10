@@ -73,10 +73,44 @@ export class DataService {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed && typeof parsed === 'object') {
+          const cachedUsers = parsed.users || [];
+          const initialUsers = initialAppData.users || [];
+          const mergedUsers = [...cachedUsers];
+          for (const iu of initialUsers) {
+            if (!mergedUsers.some(u => u.username.toLowerCase() === iu.username.toLowerCase())) {
+              mergedUsers.push(iu);
+            }
+          }
+
+          const cachedStores = parsed.stores || [];
+          const mergedStores = [...cachedStores];
+          if (!mergedStores.some(s => s.id === 'store-kioscomate')) {
+            mergedStores.push({
+              id: 'store-kioscomate',
+              name: 'Kiosco Mate',
+              cuit: '20-12345678-9',
+              businessType: 'Kiosco / Minimarket',
+              active: true,
+              isDemo: false,
+              createdAt: new Date().toISOString()
+            });
+          }
+          if (!mergedStores.some(s => s.id === 'store-lafinca')) {
+            mergedStores.push({
+              id: 'store-lafinca',
+              name: 'La Finca',
+              cuit: '30-98765432-1',
+              businessType: 'Comercio General / Campo',
+              active: true,
+              isDemo: false,
+              createdAt: new Date().toISOString()
+            });
+          }
+
           this.state = {
-            stores: parsed.stores || [],
+            stores: mergedStores,
             storeInfo: parsed.storeInfo || {} as StoreInfo,
-            users: parsed.users || [],
+            users: mergedUsers,
             products: parsed.products || [],
             suppliers: parsed.suppliers || [],
             priceIncreaseLogs: parsed.priceIncreaseLogs || [],
