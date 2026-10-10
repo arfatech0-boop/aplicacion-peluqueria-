@@ -315,6 +315,7 @@ export class DataService {
   }
 
   public static getStoreScopedState(storeId: string): AppState {
+    const sId = storeId || this.currentStoreId || 'store-demo-a';
     const currentUser = this.state.users?.find(u => u.id === this.currentUserId || u.username === 'admin' || u.username === 'facu123');
     const isSuperAdmin = currentUser?.role === 'superadmin' || currentUser?.username === 'admin' || currentUser?.username === 'facu123';
     
