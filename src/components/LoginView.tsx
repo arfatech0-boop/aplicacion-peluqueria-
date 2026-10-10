@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { AppState, SystemUser } from '../types';
 import { DataService } from '../services/dataService';
+import { initialAppData } from '../data/mockData';
 
 interface LoginViewProps {
   appState: AppState;
@@ -32,17 +33,25 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin }) => {
       return;
     }
 
-    let foundUser = DataService.getUserByUsername(username);
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanPassword = password.trim();
 
-    // Search user globally first
+    let foundUser = DataService.getUserByUsername(cleanUsername);
+
+    // Search in appState.users
     if (!foundUser) {
-      foundUser = (appState.users || []).find(u => u.username.toLowerCase() === username.trim().toLowerCase());
+      foundUser = (appState.users || []).find(u => u.username.toLowerCase() === cleanUsername);
+    }
+
+    // Direct fallback to initial mock users
+    if (!foundUser) {
+      foundUser = (initialAppData.users || []).find(u => u.username.toLowerCase() === cleanUsername);
     }
 
     // Direct database fallback if state hasn't loaded yet
     if (!foundUser) {
       try {
-        const { data, error } = await DataService.supabase.from('users').select('*').eq('username', username.trim().toLowerCase());
+        const { data, error } = await DataService.supabase.from('users').select('*').eq('username', cleanUsername);
         
         if (error) {
           console.error('Supabase query error:', error);
@@ -72,11 +81,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin }) => {
       let isPasswordValid = false;
       if (!foundUser.password) {
         isPasswordValid = true;
-      } else if (foundUser.password === password) {
+      } else if (foundUser.password === cleanPassword || foundUser.password === password) {
         isPasswordValid = true;
       } else if (foundUser.password.startsWith('$2a$') || foundUser.password.startsWith('$2b$')) {
         try {
-          isPasswordValid = bcrypt.compareSync(password, foundUser.password);
+          isPasswordValid = bcrypt.compareSync(password, foundUser.password) || bcrypt.compareSync(cleanPassword, foundUser.password);
         } catch (e) {
           isPasswordValid = false;
         }
