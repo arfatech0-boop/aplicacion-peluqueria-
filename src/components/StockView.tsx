@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Package, 
   Plus, 
@@ -15,21 +15,28 @@ import {
   Check,
   Barcode,
   RefreshCw,
-  Printer,
-  Tag
+  Printer
 } from 'lucide-react';
-import { AppState, Product, ProductUnit } from '../types';
+import { AppState, Product, ProductUnit, SystemUser } from '../types';
 import { DataService } from '../services/dataService';
 import { exportProductsExcel } from '../utils/excelExporter';
 import { BarcodeLabelModal } from './BarcodeLabelModal';
 import { BarcodeRenderer } from './BarcodeRenderer';
 import { getCatalogForRubro } from '../data/rubroCatalogs';
+import { Pagination } from './Pagination';
 
 interface StockViewProps {
   appState: AppState;
+  currentUser?: SystemUser | null;
 }
 
-export const StockView: React.FC<StockViewProps> = ({ appState }) => {
+export const StockView: React.FC<StockViewProps> = ({ appState, currentUser }) => {
+  const isMasterAdmin = Boolean(
+    currentUser?.role === 'superadmin' || 
+    currentUser?.username === 'admin' || 
+    currentUser?.username === 'facu123'
+  );
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [onlyLowStock, setOnlyLowStock] = useState(false);
@@ -48,9 +55,18 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
   const [adjustType, setAdjustType] = useState<'in' | 'out' | 'adjust'>('in');
   const [adjustReason, setAdjustReason] = useState('');
 
+  // Category addition state
+  const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const newCategoryInputRef = useRef<HTMLInputElement>(null);
+
   const categories = Array.from(
-    new Set(appState.products.map(p => p.category).filter(Boolean))
-  );
+    new Set([
+      ...(appState.storeInfo.customCategories || []),
+      ...appState.products.map(p => p.category).filter(Boolean)
+    ])
+  ).filter(Boolean).sort((a, b) => a.localeCompare(b));
+
   const supplierMap = new Map(appState.suppliers.map(s => [s.id, s.name]));
 
   // Filter products
@@ -68,12 +84,37 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
     return matchesCategory && matchesLowStock && matchesSearch;
   });
 
+  // Pagination states
+  const [productPage, setProductPage] = useState(1);
+  const [productPageSize, setProductPageSize] = useState(20);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(20);
+
+  // Reset pagination when search or filters change
+  React.useEffect(() => {
+    setProductPage(1);
+  }, [searchQuery, selectedCategory, onlyLowStock]);
+
+  // Paginated product items
+  const paginatedProducts = filteredProducts.slice(
+    (productPage - 1) * productPageSize,
+    productPage * productPageSize
+  );
+
+  // Paginated history items
+  const paginatedMovements = appState.stockMovements.slice(
+    (historyPage - 1) * historyPageSize,
+    historyPage * historyPageSize
+  );
+
   const handleOpenNewProduct = () => {
+    setIsAddingNewCategory(false);
+    setNewCategoryName('');
     setEditingProduct({
       id: `prod-${Date.now()}`,
       code: `779${Math.floor(100000000 + Math.random() * 900000000)}`,
       name: '',
-      category: categories[0] || 'Indumentaria',
+      category: categories[0] || 'General',
       supplierId: appState.suppliers[0]?.id || '',
       costPrice: 0,
       salePrice: 0,
@@ -89,6 +130,27 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
     setIsProductModalOpen(true);
   };
 
+  const handleSaveNewCategory = async () => {
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) return;
+
+    // Set category for the currently edited product
+    setEditingProduct(prev => prev ? { ...prev, category: trimmed } : null);
+
+    // Save permanently to customCategories in storeInfo
+    const existing = appState.storeInfo.customCategories || [];
+    if (!existing.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      const updatedCategories = [...existing, trimmed];
+      await DataService.saveStoreInfo({
+        ...appState.storeInfo,
+        customCategories: updatedCategories
+      });
+    }
+
+    setIsAddingNewCategory(false);
+    setNewCategoryName('');
+  };
+
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct?.name || !editingProduct?.code) {
@@ -96,11 +158,13 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
       return;
     }
 
+    const categoryToSave = editingProduct.category?.trim() || 'General';
+
     const prodToSave: Product = {
       id: editingProduct.id || `prod-${Date.now()}`,
       code: editingProduct.code,
       name: editingProduct.name,
-      category: editingProduct.category || 'General',
+      category: categoryToSave,
       supplierId: editingProduct.supplierId || '',
       costPrice: Number(editingProduct.costPrice) || 0,
       salePrice: Number(editingProduct.salePrice) || 0,
@@ -114,9 +178,22 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
       updatedAt: new Date().toISOString()
     };
 
+    // Guarantee the category is saved permanently to customCategories
+    if (categoryToSave) {
+      const existing = appState.storeInfo.customCategories || [];
+      if (!existing.some(c => c.toLowerCase() === categoryToSave.toLowerCase())) {
+        await DataService.saveStoreInfo({
+          ...appState.storeInfo,
+          customCategories: [...existing, categoryToSave]
+        });
+      }
+    }
+
     await DataService.saveProduct(prodToSave);
     setIsProductModalOpen(false);
     setEditingProduct(null);
+    setIsAddingNewCategory(false);
+    setNewCategoryName('');
   };
 
   const handleDeleteProduct = async (id: string, name: string) => {
@@ -184,14 +261,16 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={handleLoadRubroCatalog}
-            className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-xs transition-colors"
-            title={`Cargar catálogo de ejemplo para ${appState.storeInfo.businessType || 'el rubro seleccionado'}`}
-          >
-            <RefreshCw className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Cargar Catálogo ({appState.storeInfo.businessType?.split('/')[0] || 'Rubro'})</span>
-          </button>
+          {isMasterAdmin && (
+            <button
+              onClick={handleLoadRubroCatalog}
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-xs transition-colors"
+              title={`Cargar catálogo de ejemplo para ${appState.storeInfo.businessType || 'el rubro seleccionado'}`}
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Cargar Catálogo ({appState.storeInfo.businessType?.split('/')[0] || 'Rubro'})</span>
+            </button>
+          )}
           <button
             onClick={() => {
               setBarcodeModalProduct(appState.products[0] || null);
@@ -308,7 +387,7 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
                       </td>
                     </tr>
                   ) : (
-                    filteredProducts.map(prod => {
+                    paginatedProducts.map(prod => {
                       const isLow = prod.stock <= prod.minStock;
                       const marginPct = prod.costPrice > 0
                         ? (((prod.salePrice - prod.costPrice) / prod.costPrice) * 100).toFixed(1)
@@ -413,6 +492,16 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
                 </tbody>
               </table>
             </div>
+
+            <Pagination
+              currentPage={productPage}
+              totalItems={filteredProducts.length}
+              pageSize={productPageSize}
+              onPageChange={setProductPage}
+              onPageSizeChange={setProductPageSize}
+              pageSizeOptions={[10, 20, 50, 100]}
+              itemLabel="productos"
+            />
           </div>
         </div>
       ) : (
@@ -430,35 +519,53 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {appState.stockMovements.map(sm => (
-                <tr key={sm.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 text-slate-500">{new Date(sm.date).toLocaleString('es-AR')}</td>
-                  <td className="px-4 py-3 font-bold text-slate-900">{sm.productName}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                      sm.type === 'in' ? 'bg-emerald-100 text-emerald-800' :
-                      sm.type === 'sale' ? 'bg-indigo-100 text-indigo-800' :
-                      sm.type === 'withdrawal' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'
-                    }`}>
-                      {sm.type === 'in' ? 'Entrada' : sm.type === 'out' ? 'Salida' : sm.type}
-                    </span>
+              {paginatedMovements.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-slate-400">
+                    No hay movimientos de stock registrados.
                   </td>
-                  <td className="px-4 py-3 text-center font-bold">{sm.quantity}</td>
-                  <td className="px-4 py-3 text-center text-slate-600">
-                    {sm.previousStock} &rarr; <span className="font-bold text-slate-900">{sm.newStock}</span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{sm.reason}</td>
                 </tr>
-              ))}
+              ) : (
+                paginatedMovements.map(sm => (
+                  <tr key={sm.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 text-slate-500">{new Date(sm.date).toLocaleString('es-AR')}</td>
+                    <td className="px-4 py-3 font-bold text-slate-900">{sm.productName}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        sm.type === 'in' ? 'bg-emerald-100 text-emerald-800' :
+                        sm.type === 'sale' ? 'bg-indigo-100 text-indigo-800' :
+                        sm.type === 'withdrawal' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'
+                      }`}>
+                        {sm.type === 'in' ? 'Entrada' : sm.type === 'out' ? 'Salida' : sm.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center font-bold">{sm.quantity}</td>
+                    <td className="px-4 py-3 text-center text-slate-600">
+                      {sm.previousStock} &rarr; <span className="font-bold text-slate-900">{sm.newStock}</span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{sm.reason}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
+
+          <Pagination
+            currentPage={historyPage}
+            totalItems={appState.stockMovements.length}
+            pageSize={historyPageSize}
+            onPageChange={setHistoryPage}
+            onPageSizeChange={setHistoryPageSize}
+            pageSizeOptions={[10, 20, 50, 100]}
+            itemLabel="movimientos"
+          />
         </div>
       )}
 
       {/* Product Create/Edit Modal */}
       {isProductModalOpen && editingProduct && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-bold text-slate-900 text-base">
                 {editingProduct.name ? 'Editar Producto' : 'Nuevo Producto'}
@@ -504,24 +611,94 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
                   )}
                 </div>
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Categoría</label>
-                  <input
-                    type="text"
-                    required
-                    list="category-options"
-                    value={editingProduct.category || ''}
-                    onChange={e => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                    className="w-full px-3 py-1.5 border rounded bg-slate-50 text-xs focus:ring-1 focus:ring-indigo-500"
-                    placeholder="Ej. Almacén, Ferretería, etc."
-                  />
-                  <datalist id="category-options">
-                    {Array.from(new Set([
-                      ...(appState.storeInfo.customCategories || []),
-                      ...categories
-                    ])).map(cat => (
-                      <option key={cat} value={cat} />
-                    ))}
-                  </datalist>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-slate-700 text-xs">Categoría</label>
+                    {!isAddingNewCategory && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingNewCategory(true);
+                          setTimeout(() => newCategoryInputRef.current?.focus(), 50);
+                        }}
+                        className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center space-x-0.5"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>+ Nueva Categoría</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {!isAddingNewCategory ? (
+                    <select
+                      value={editingProduct.category || ''}
+                      onChange={e => {
+                        if (e.target.value === '__NEW__') {
+                          setIsAddingNewCategory(true);
+                          setTimeout(() => newCategoryInputRef.current?.focus(), 50);
+                        } else {
+                          setEditingProduct({ ...editingProduct, category: e.target.value });
+                        }
+                      }}
+                      className="w-full px-3 py-1.5 border rounded bg-slate-50 text-xs font-semibold focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                    >
+                      <option value="">Seleccionar Categoría...</option>
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                      <option value="__NEW__" className="text-indigo-600 font-bold bg-indigo-50">
+                        ➕ + Crear nueva categoría...
+                      </option>
+                    </select>
+                  ) : (
+                    <div className="space-y-1.5 animate-fade-in">
+                      <input
+                        ref={newCategoryInputRef}
+                        type="text"
+                        value={newCategoryName}
+                        onChange={e => setNewCategoryName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSaveNewCategory();
+                          } else if (e.key === 'Escape') {
+                            setIsAddingNewCategory(false);
+                            setNewCategoryName('');
+                          }
+                        }}
+                        placeholder="Escriba nueva categoría..."
+                        className="w-full px-2.5 py-1.5 border-2 border-indigo-500 rounded-lg bg-white text-xs font-bold focus:outline-none"
+                        autoFocus
+                      />
+                      <div className="flex items-center space-x-1.5">
+                        <button
+                          type="button"
+                          onClick={handleSaveNewCategory}
+                          disabled={!newCategoryName.trim()}
+                          className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold flex items-center justify-center space-x-1 shadow-xs transition-colors"
+                          title="Guardar y añadir al desplegable"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Guardar</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingNewCategory(false);
+                            setNewCategoryName('');
+                          }}
+                          className="px-2.5 py-1.5 text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-semibold transition-colors"
+                          title="Cancelar"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium block leading-tight">
+                        Se guardará en el desplegable.
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -536,108 +713,6 @@ export const StockView: React.FC<StockViewProps> = ({ appState }) => {
                   placeholder="Ej. Remera Algodón, Jean Slim Fit, Cemento 50kg, etc."
                 />
               </div>
-
-              {/* Adaptable Variants Section according to Business Rubro */}
-              {(() => {
-                const bType = (appState.storeInfo.businessType || '').toLowerCase();
-                const isClothing = bType.includes('indumentaria') || bType.includes('ropa') || bType.includes('calzado');
-
-                return (
-                  <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-indigo-900 flex items-center space-x-1">
-                        <Tag className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>
-                          {isClothing ? 'Talle, Color & Marca (Indumentaria)' : 'Marca & Presentación (Opcional)'}
-                        </span>
-                      </span>
-                      <span className="text-[10px] text-indigo-600 font-semibold">
-                        {isClothing ? 'Opcional para prendas o calzado' : 'Opcional para especificar presentación'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {/* Size / Presentación */}
-                      <div>
-                        <label className="font-semibold text-slate-700 block mb-1">
-                          {isClothing ? 'Talle / Medida' : 'Presentación / Medida'}
-                        </label>
-                        <input
-                          type="text"
-                          value={editingProduct.size || ''}
-                          onChange={e => setEditingProduct({ ...editingProduct, size: e.target.value })}
-                          className="w-full px-2.5 py-1.5 border rounded bg-white text-xs font-bold focus:ring-1 focus:ring-indigo-500"
-                          placeholder={isClothing ? 'Ej. M, L, XL, 42...' : 'Ej. 1.5 Litros, 500g, 50kg...'}
-                        />
-                        {/* Quick Talle Chips only for clothing */}
-                        {isClothing && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {['XS', 'S', 'M', 'L', 'XL', 'XXL', '38', '40', '42', '44'].map(talle => (
-                              <button
-                                key={talle}
-                                type="button"
-                                onClick={() => setEditingProduct({ ...editingProduct, size: talle })}
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${
-                                  editingProduct.size === talle
-                                    ? 'bg-indigo-600 text-white border-indigo-600'
-                                    : 'bg-white text-slate-700 border-slate-300 hover:bg-indigo-100'
-                                }`}
-                              >
-                                {talle}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Color / Variante / Sabor */}
-                      <div>
-                        <label className="font-semibold text-slate-700 block mb-1">
-                          {isClothing ? 'Color / Variante' : 'Variante / Sabor / Color'}
-                        </label>
-                        <input
-                          type="text"
-                          value={editingProduct.color || ''}
-                          onChange={e => setEditingProduct({ ...editingProduct, color: e.target.value })}
-                          className="w-full px-2.5 py-1.5 border rounded bg-white text-xs font-bold focus:ring-1 focus:ring-indigo-500"
-                          placeholder={isClothing ? 'Ej. Negro, Blanco, Azul...' : 'Ej. Descremada, Sin Azúcar, Original...'}
-                        />
-                        {/* Quick Color Chips only for clothing */}
-                        {isClothing && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {['Negro', 'Blanco', 'Azul', 'Rojo', 'Verde', 'Gris'].map(col => (
-                              <button
-                                key={col}
-                                type="button"
-                                onClick={() => setEditingProduct({ ...editingProduct, color: col })}
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${
-                                  editingProduct.color === col
-                                    ? 'bg-slate-900 text-white border-slate-900'
-                                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                                }`}
-                              >
-                                {col}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Brand / Marca */}
-                      <div>
-                        <label className="font-semibold text-slate-700 block mb-1">Marca / Fabricante</label>
-                        <input
-                          type="text"
-                          value={editingProduct.brand || ''}
-                          onChange={e => setEditingProduct({ ...editingProduct, brand: e.target.value })}
-                          className="w-full px-2.5 py-1.5 border rounded bg-white text-xs font-bold focus:ring-1 focus:ring-indigo-500"
-                          placeholder={isClothing ? "Ej. Nike, Levi's..." : "Ej. La Serenísima, Coca-Cola, Arcor..."}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>

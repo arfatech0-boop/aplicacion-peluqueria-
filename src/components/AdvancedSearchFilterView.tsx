@@ -15,6 +15,7 @@ import { AppState, Sale, CustomerTransaction, CustomerWithdrawal } from '../type
 import { DataService } from '../services/dataService';
 import { exportSalesExcel } from '../utils/excelExporter';
 import { generateSaleInvoicePDF, generateThermalTicketPDF } from '../utils/pdfGenerator';
+import { Pagination } from './Pagination';
 
 interface AdvancedSearchFilterViewProps {
   appState: AppState;
@@ -74,6 +75,20 @@ export const AdvancedSearchFilterView: React.FC<AdvancedSearchFilterViewProps> =
 
     return true;
   });
+
+  // Pagination states
+  const [salesPage, setSalesPage] = useState(1);
+  const [salesPageSize, setSalesPageSize] = useState(20);
+
+  // Reset pagination on filter changes
+  React.useEffect(() => {
+    setSalesPage(1);
+  }, [textSearch, selectedCategory, paymentMethodFilter, dateRange, startDate, endDate]);
+
+  const paginatedSales = filteredSales.slice(
+    (salesPage - 1) * salesPageSize,
+    salesPage * salesPageSize
+  );
 
   return (
     <div className="space-y-6">
@@ -217,7 +232,7 @@ export const AdvancedSearchFilterView: React.FC<AdvancedSearchFilterViewProps> =
                   </td>
                 </tr>
               ) : (
-                filteredSales.map(sale => {
+                paginatedSales.map(sale => {
                   const isAnnulled = sale.status === 'annulled';
                   const handleAnnulSaleFromHistory = async () => {
                     if (window.confirm(`¿Está seguro de anular la venta ${sale.invoiceNumber} ($${sale.totalAmount.toLocaleString('es-AR')})?\n\nEsta acción devolverá los productos al stock y revertirá los saldos/caja.`)) {
@@ -285,6 +300,16 @@ export const AdvancedSearchFilterView: React.FC<AdvancedSearchFilterViewProps> =
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={salesPage}
+          totalItems={filteredSales.length}
+          pageSize={salesPageSize}
+          onPageChange={setSalesPage}
+          onPageSizeChange={setSalesPageSize}
+          pageSizeOptions={[10, 20, 50, 100]}
+          itemLabel="comprobantes"
+        />
       </div>
     </div>
   );

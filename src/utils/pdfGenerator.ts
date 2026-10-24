@@ -110,7 +110,7 @@ export const generateSaleInvoicePDF = (sale: Sale, storeInfo: StoreInfo) => {
       item.code || '779888999001',
       item.productName,
       item.quantity.toString(),
-      'un',
+      item.unit || 'un',
       `$${unitP.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       isFacturaA ? '21%' : '0%',
       `$${subt.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -282,7 +282,7 @@ export const generateThermalTicketPDF = (sale: Sale, storeInfo: StoreInfo) => {
     doc.text(item.productName.slice(0, 28), 5, y);
     y += 4;
     doc.setFont('helvetica', 'normal');
-    doc.text(`${item.quantity} x $${item.unitPrice.toLocaleString('es-AR')}`, 5, y);
+    doc.text(`${item.quantity} ${item.unit || ''} x $${item.unitPrice.toLocaleString('es-AR')}`, 5, y);
     doc.text(`$${item.subtotal.toLocaleString('es-AR')}`, 75, y, { align: 'right' });
     y += 4.5;
   });
@@ -459,7 +459,7 @@ export const generateCustomerAccountStatementPDF = (
   const tableData = transactions.map(t => [
     new Date(t.date).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
     t.description,
-    t.type === 'sale' ? 'Venta Cta Cte' : (t.type === 'payment' ? 'Pago / Entrega' : 'Ajuste Manual'),
+    t.type === 'sale' ? 'Venta Cta Cte' : (t.type === 'payment' ? 'Pago / Entrega' : (t.type === 'withdrawal_billing' ? 'Retiro / Remito' : (t.type === 'charge' ? 'Cargo / Retiro' : 'Ajuste Manual'))),
     t.type === 'payment' ? `-$${t.amount.toLocaleString('es-AR')}` : `+$${t.amount.toLocaleString('es-AR')}`,
     `$${t.balanceAfter.toLocaleString('es-AR')}`
   ]);
@@ -505,7 +505,7 @@ export const generateCustomerAccountStatementPDF = (
 };
 
 export const generateCustomerPaymentReceiptPDF = (
-  transaction: { receiptNumber?: string; amount: number; description: string; date: string; paymentMethod?: string },
+  transaction: { receiptNumber?: string; amount: number; description: string; date: string; paymentMethod?: string; balanceAfter?: number; isPartial?: boolean },
   customer: Customer,
   storeInfo: StoreInfo
 ) => {
@@ -574,10 +574,15 @@ export const generateCustomerPaymentReceiptPDF = (
   doc.text(`Observaciones: ${transaction.description || 'Recibo de Cobranza Cta Cte'}`, 115, 67);
 
   // Table Data
+  const isPartial = transaction.balanceAfter !== undefined && transaction.balanceAfter > 0;
+  const paymentConcept = isPartial
+    ? `Entrega / Pago Parcial a Cuenta (${customer.name})`
+    : `Cancelación Total de Saldo (${customer.name})`;
+
   const tableData = [
     [
       'REC-01',
-      `Cobro / Entrega a Cuenta (${customer.name})`,
+      paymentConcept,
       '1',
       'un',
       `$${transaction.amount.toLocaleString('es-AR')}`,
@@ -598,21 +603,43 @@ export const generateCustomerPaymentReceiptPDF = (
   const finalY = (doc as any).lastAutoTable.finalY || 100;
 
   // Summary Card on bottom right
+  const boxHeight = transaction.balanceAfter !== undefined ? 32 : 22;
   doc.setFillColor(241, 245, 249);
-  doc.roundedRect(115, finalY + 6, 81, 22, 2, 2, 'F');
+  doc.roundedRect(105, finalY + 6, 91, boxHeight, 2, 2, 'F');
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(51, 65, 85);
-  doc.text('Subtotal:', 120, finalY + 14);
+  doc.text('Monto Entregado / Pagado:', 110, finalY + 14);
   doc.setFont('helvetica', 'bold');
-  doc.text(`$${transaction.amount.toLocaleString('es-AR')}`, 190, finalY + 14, { align: 'right' });
+  doc.setTextColor(16, 185, 129);
+  doc.text(`+$${transaction.amount.toLocaleString('es-AR')}`, 190, finalY + 14, { align: 'right' });
 
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text('TOTAL:', 120, finalY + 22);
-  doc.text(`$${transaction.amount.toLocaleString('es-AR')}`, 190, finalY + 22, { align: 'right' });
+  if (transaction.balanceAfter !== undefined) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(transaction.balanceAfter > 0 ? 220 : 16, transaction.balanceAfter > 0 ? 38 : 185, transaction.balanceAfter > 0 ? 38 : 129);
+    doc.text(
+      transaction.balanceAfter > 0 ? 'Saldo Restante Pendiente:' : 'Saldo Deuda Actual:',
+      110,
+      finalY + 22
+    );
+    doc.text(
+      transaction.balanceAfter > 0 ? `$${transaction.balanceAfter.toLocaleString('es-AR')}` : 'AL DÍA ($0)',
+      190,
+      finalY + 22,
+      { align: 'right' }
+    );
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      transaction.balanceAfter > 0 ? '* Pago parcial: El cliente abonó una parte y resta el saldo indicado.' : '* Cancelación completa de deuda.',
+      110,
+      finalY + 30
+    );
+  }
 
   doc.save(`Recibo_Cobro_${customer.name.replace(/\s+/g, '_')}_${receiptNo}.pdf`);
 };

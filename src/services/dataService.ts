@@ -1,7 +1,8 @@
 import { createClient, SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
-import { AppState, CashRegister, Cheque, Customer, CustomerTransaction, CustomerWithdrawal, GlobalPriceIncreaseLog, Product, Sale, StockMovement, StoreAccount, StoreInfo, Supplier, SystemUser } from '../types';
+import { AppState, CashRegister, Cheque, Customer, CustomerTransaction, CustomerWithdrawal, GlobalPriceIncreaseLog, Product, Sale, StockMovement, StoreAccount, StoreInfo, Supplier, SystemUser, WithdrawalStatus } from '../types';
 import { initialAppData } from '../data/mockData';
 import { SUPABASE_URL, SUPABASE_KEY } from '../config';
+import { getCatalogForRubro, DEFAULT_KIOSCO_SUPPLIERS } from '../data/rubroCatalogs';
 
 interface OfflineSyncItem {
   id: string;
@@ -67,6 +68,20 @@ export class DataService {
     }
   }
 
+  private static setupRealtimeSubscription() {
+    try {
+      if (!this.supabase || typeof this.supabase.channel !== 'function') return;
+      this.supabase
+        .channel('public-db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+          this.fetchAllData().catch(err => console.warn('[DataService] Error on realtime update:', err));
+        })
+        .subscribe();
+    } catch (e) {
+      console.warn('[DataService] Realtime subscription notice:', e);
+    }
+  }
+
   private static loadFromLocalCache() {
     try {
       const cached = localStorage.getItem('gc_offline_state_v1');
@@ -107,12 +122,40 @@ export class DataService {
             });
           }
 
+          const cachedProducts: Product[] = parsed.products || [];
+          const mergedProducts = [...cachedProducts];
+          const cachedSuppliers: Supplier[] = parsed.suppliers || [];
+          const mergedSuppliers = [...cachedSuppliers];
+
+          // Auto-recover/populate Kiosco Mate products if missing
+          if (!mergedProducts.some(p => p.storeId === 'store-kioscomate')) {
+            const kioscoCatalog = getCatalogForRubro('Kiosco / Drugstore');
+            kioscoCatalog.forEach((p, idx) => {
+              mergedProducts.push({
+                ...p,
+                id: `prod-kio-mate-${idx + 1}`,
+                storeId: 'store-kioscomate'
+              });
+            });
+          }
+
+          // Auto-recover/populate Kiosco Mate suppliers if missing
+          if (!mergedSuppliers.some(s => s.storeId === 'store-kioscomate')) {
+            DEFAULT_KIOSCO_SUPPLIERS.forEach(s => {
+              mergedSuppliers.push({
+                ...s,
+                id: `${s.id}-kioscomate`,
+                storeId: 'store-kioscomate'
+              });
+            });
+          }
+
           this.state = {
             stores: mergedStores,
             storeInfo: parsed.storeInfo || {} as StoreInfo,
             users: mergedUsers,
-            products: parsed.products || [],
-            suppliers: parsed.suppliers || [],
+            products: mergedProducts,
+            suppliers: mergedSuppliers,
             priceIncreaseLogs: parsed.priceIncreaseLogs || [],
             customers: parsed.customers || [],
             customerTransactions: parsed.customerTransactions || [],
@@ -130,6 +173,26 @@ export class DataService {
       
       // Si no hay nada guardado aún, cargar mockData por defecto
       if (!this.state.products || this.state.products.length === 0) {
+        const initialProducts = (initialAppData.products || []).map(p => ({ ...p, storeId: 'store-demo-a' }));
+        const initialSuppliers = (initialAppData.suppliers || []).map(s => ({ ...s, storeId: 'store-demo-a' }));
+
+        // Cargar catálogo inicial de Kiosco Mate y sus proveedores
+        const kioscoCatalog = getCatalogForRubro('Kiosco / Drugstore');
+        kioscoCatalog.forEach((p, idx) => {
+          initialProducts.push({
+            ...p,
+            id: `prod-kio-mate-${idx + 1}`,
+            storeId: 'store-kioscomate'
+          });
+        });
+        DEFAULT_KIOSCO_SUPPLIERS.forEach(s => {
+          initialSuppliers.push({
+            ...s,
+            id: `${s.id}-kioscomate`,
+            storeId: 'store-kioscomate'
+          });
+        });
+
         this.state = {
           stores: [
             {
@@ -140,12 +203,21 @@ export class DataService {
               active: true,
               isDemo: true,
               createdAt: new Date().toISOString()
+            },
+            {
+              id: 'store-kioscomate',
+              name: 'Kiosco Mate',
+              cuit: '20-12345678-9',
+              businessType: 'Kiosco / Minimarket',
+              active: true,
+              isDemo: false,
+              createdAt: new Date().toISOString()
             }
           ],
           storeInfo: initialAppData.storeInfo,
           users: initialAppData.users || [],
-          products: (initialAppData.products || []).map(p => ({ ...p, storeId: 'store-demo-a' })),
-          suppliers: (initialAppData.suppliers || []).map(s => ({ ...s, storeId: 'store-demo-a' })),
+          products: initialProducts,
+          suppliers: initialSuppliers,
           priceIncreaseLogs: (initialAppData.priceIncreaseLogs || []).map(l => ({ ...l, storeId: 'store-demo-a' })),
           customers: (initialAppData.customers || []).map(c => ({ ...c, storeId: 'store-demo-a' })),
           customerTransactions: (initialAppData.customerTransactions || []).map(t => ({ ...t, storeId: 'store-demo-a' })),
@@ -155,7 +227,16 @@ export class DataService {
           cashRegisters: (initialAppData.cashRegisters || []).map(r => ({ ...r, storeId: 'store-demo-a' })),
           stockMovements: (initialAppData.stockMovements || []).map(m => ({ ...m, storeId: 'store-demo-a' }))
         };
-        this.rawStoreInfos = [{ ...initialAppData.storeInfo, storeId: 'store-demo-a' }];
+        this.rawStoreInfos = [
+          { ...initialAppData.storeInfo, storeId: 'store-demo-a' },
+          { 
+            storeId: 'store-kioscomate',
+            name: 'Kiosco Mate',
+            cuit: '20-12345678-9',
+            businessType: 'Kiosco / Minimarket',
+            customCategories: ['Golosinas & Chocolates', 'Cigarrillos & Tabaco', 'Bebidas & Energizantes', 'Galletitas & Snacks', 'Artículos de Kiosco']
+          }
+        ];
         this.saveToLocalCache();
         this.notify();
       }
@@ -166,6 +247,19 @@ export class DataService {
 
   private static saveToLocalCache() {
     try {
+      // Guard: Si el estado actual tuviera 0 productos por un fallo de carga,
+      // no pisar el caché del localStorage si antes tenía productos
+      const existing = localStorage.getItem('gc_offline_state_v1');
+      if (existing && (!this.state.products || this.state.products.length === 0)) {
+        try {
+          const parsed = JSON.parse(existing);
+          if (parsed && Array.isArray(parsed.products) && parsed.products.length > 0) {
+            console.warn('[DataService] Protegiendo caché: evitando sobreescritura con lista vacía.');
+            this.state.products = parsed.products;
+          }
+        } catch {}
+      }
+
       const dataToSave = {
         ...this.state,
         rawStoreInfos: this.rawStoreInfos
@@ -247,21 +341,7 @@ export class DataService {
 
   private static async fetchAllData() {
     try {
-      const [
-        { data: stores },
-        { data: storeInfo },
-        { data: users },
-        { data: products },
-        { data: suppliers },
-        { data: priceIncreaseLogs },
-        { data: customers },
-        { data: customerTransactions },
-        { data: withdrawals },
-        { data: sales },
-        { data: cheques },
-        { data: cashRegisters },
-        { data: stockMovements }
-      ] = await Promise.all([
+      const results = await Promise.allSettled([
         this.supabase.from('stores').select('*'),
         this.supabase.from('storeInfo').select('*'),
         this.supabase.from('users').select('*'),
@@ -277,27 +357,91 @@ export class DataService {
         this.supabase.from('stockMovements').select('*')
       ]);
 
-      this.rawStoreInfos = storeInfo || [];
+      const [
+        storesRes,
+        storeInfoRes,
+        usersRes,
+        productsRes,
+        suppliersRes,
+        priceIncreaseLogsRes,
+        customersRes,
+        customerTransactionsRes,
+        withdrawalsRes,
+        salesRes,
+        chequesRes,
+        cashRegistersRes,
+        stockMovementsRes
+      ] = results.map(r => r.status === 'fulfilled' ? r.value : { data: null, error: r.reason });
 
-      this.state = {
-        stores: stores || [],
-        storeInfo: {} as StoreInfo,
-        users: users || [],
-        products: products || [],
-        suppliers: suppliers || [],
-        priceIncreaseLogs: priceIncreaseLogs || [],
-        customers: customers || [],
-        customerTransactions: customerTransactions || [],
-        withdrawals: withdrawals || [],
-        sales: sales || [],
-        cheques: cheques || [],
-        cashRegisters: cashRegisters || [],
-        stockMovements: stockMovements || []
-      };
+      // Si Supabase no responde o falla la red, NO destruir los datos locales
+      const anyError = results.some(r => r.status === 'rejected' || (r.status === 'fulfilled' && (r.value as any)?.error));
+      if (anyError) {
+        console.warn('⚠️ [DataService] Supabase no disponible o con errores. Conservando datos de caché local intactos.');
+      }
 
+      let hasAnySuccess = false;
+      const updatedState = { ...this.state };
+
+      if (!storesRes?.error && Array.isArray(storesRes?.data) && storesRes.data.length > 0) {
+        updatedState.stores = storesRes.data;
+        hasAnySuccess = true;
+      }
+      if (!storeInfoRes?.error && Array.isArray(storeInfoRes?.data) && storeInfoRes.data.length > 0) {
+        this.rawStoreInfos = storeInfoRes.data;
+        hasAnySuccess = true;
+      }
+      if (!usersRes?.error && Array.isArray(usersRes?.data) && usersRes.data.length > 0) {
+        const mergedUsers = [...usersRes.data];
+        for (const iu of initialAppData.users || []) {
+          if (!mergedUsers.some(u => u.username.toLowerCase() === iu.username.toLowerCase())) {
+            mergedUsers.push(iu);
+          }
+        }
+        updatedState.users = mergedUsers;
+        hasAnySuccess = true;
+      }
+      if (!productsRes?.error && Array.isArray(productsRes?.data) && productsRes.data.length > 0) {
+        updatedState.products = productsRes.data;
+        hasAnySuccess = true;
+      }
+      if (!suppliersRes?.error && Array.isArray(suppliersRes?.data) && suppliersRes.data.length > 0) {
+        updatedState.suppliers = suppliersRes.data;
+        hasAnySuccess = true;
+      }
+      if (!priceIncreaseLogsRes?.error && Array.isArray(priceIncreaseLogsRes?.data)) {
+        updatedState.priceIncreaseLogs = priceIncreaseLogsRes.data;
+      }
+      if (!customersRes?.error && Array.isArray(customersRes?.data) && customersRes.data.length > 0) {
+        updatedState.customers = customersRes.data;
+        hasAnySuccess = true;
+      }
+      if (!customerTransactionsRes?.error && Array.isArray(customerTransactionsRes?.data)) {
+        updatedState.customerTransactions = customerTransactionsRes.data;
+      }
+      if (!withdrawalsRes?.error && Array.isArray(withdrawalsRes?.data)) {
+        updatedState.withdrawals = withdrawalsRes.data;
+      }
+      if (!salesRes?.error && Array.isArray(salesRes?.data) && salesRes.data.length > 0) {
+        updatedState.sales = salesRes.data;
+        hasAnySuccess = true;
+      }
+      if (!chequesRes?.error && Array.isArray(chequesRes?.data)) {
+        updatedState.cheques = chequesRes.data;
+      }
+      if (!cashRegistersRes?.error && Array.isArray(cashRegistersRes?.data)) {
+        updatedState.cashRegisters = cashRegistersRes.data;
+      }
+      if (!stockMovementsRes?.error && Array.isArray(stockMovementsRes?.data)) {
+        updatedState.stockMovements = stockMovementsRes.data;
+      }
+
+      this.state = updatedState;
+      if (hasAnySuccess) {
+        this.saveToLocalCache();
+      }
       this.notify();
     } catch (err) {
-      console.error('Error fetching data from Supabase:', err);
+      console.warn('[DataService] Error en fetchAllData, manteniendo datos locales intactos:', err);
     }
   }
 
@@ -423,6 +567,11 @@ export class DataService {
 
   // Generic save/upsert function with Offline Queue support
   private static async saveToSupabase(table: string, data: any) {
+    // Ensure storeId is present on local data so filterByStore doesn't drop it
+    if (!data.storeId && this.currentStoreId) {
+      data.storeId = this.currentStoreId;
+    }
+
     // 1. Update local memory optimistically
     const list = (this.state as any)[table];
     if (Array.isArray(list)) {
@@ -433,20 +582,52 @@ export class DataService {
       this.notify();
     }
 
+    // Prepare payload matching Supabase table columns exactly
+    let supabasePayload = { ...data };
+    if (table === 'customerTransactions') {
+      supabasePayload = {
+        id: data.id,
+        storeId: data.storeId || this.currentStoreId,
+        customerId: data.customerId,
+        type: data.type,
+        amount: Number(data.amount) || 0,
+        balanceAfter: Number(data.balanceAfter) || 0,
+        date: data.date,
+        description: data.description || '',
+        saleId: data.saleId || null,
+        withdrawalId: data.withdrawalId || null,
+        receiptNumber: data.receiptNumber || data.reference || null
+      };
+    } else if (table === 'customers') {
+      supabasePayload = {
+        id: data.id,
+        storeId: data.storeId || this.currentStoreId,
+        name: data.name,
+        dniCuit: data.dniCuit || '',
+        phone: data.phone || '',
+        email: data.email || '',
+        address: data.address || '',
+        creditLimit: Number(data.creditLimit) || 0,
+        currentBalance: Number(data.currentBalance) || 0,
+        notes: data.notes || '',
+        updatedAt: data.updatedAt || new Date().toISOString()
+      };
+    }
+
     // 2. If offline or Supabase fails, save to offlineQueue
     if (!navigator.onLine) {
       this.enqueueOfflineAction({
         id: `offline-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         table,
         action: 'upsert',
-        data,
+        data: supabasePayload,
         timestamp: Date.now()
       });
       return;
     }
 
     try {
-      const { error } = await this.supabase.from(table).upsert(data);
+      const { error } = await this.supabase.from(table).upsert(supabasePayload);
       if (error) throw error;
     } catch (err) {
       console.warn(`[DataService] Supabase network error on ${table}, queueing offline:`, err);
@@ -454,7 +635,7 @@ export class DataService {
         id: `offline-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         table,
         action: 'upsert',
-        data,
+        data: supabasePayload,
         timestamp: Date.now()
       });
     }
@@ -514,11 +695,15 @@ export class DataService {
   }
 
   public static async saveProduct(product: Product) {
-    await this.saveToSupabase('products', { ...product, storeId: this.currentStoreId });
+    await this.saveToSupabase('products', { ...product, storeId: product.storeId || this.currentStoreId });
   }
 
-  public static async replaceProducts(newProducts: Product[]) {
-    const storeId = this.currentStoreId;
+  public static async replaceProducts(newProducts: Product[], targetStoreId?: string) {
+    const storeId = targetStoreId || this.currentStoreId;
+    if (!storeId || storeId.trim() === '') {
+      console.error('[DataService] Error de seguridad: replaceProducts abortado porque storeId no está definido.');
+      return;
+    }
     const productsWithStore = newProducts.map(p => ({ ...p, storeId }));
 
     // Update local state and cache
@@ -590,6 +775,109 @@ export class DataService {
         });
       }
     }
+
+    // Impactar en la cuenta corriente del cliente si se pagó a crédito o por Remito
+    if (sale.customerId) {
+      let ccAmount = 0;
+      if (sale.paymentMethod === 'current_account' || sale.invoiceType === 'REMITO') {
+        ccAmount = sale.totalAmount;
+      } else if (sale.paymentsBreakdown && sale.paymentsBreakdown.length > 0) {
+        const ccPart = sale.paymentsBreakdown.find(p => p.method === 'current_account');
+        if (ccPart) ccAmount = ccPart.amount;
+      }
+
+      if (ccAmount > 0) {
+        const customer = this.state.customers.find(c => c.id === sale.customerId);
+        if (customer) {
+          const prevBalance = Number(customer.currentBalance) || 0;
+          const newBalance = prevBalance + ccAmount;
+          customer.currentBalance = newBalance;
+          customer.updatedAt = new Date().toISOString();
+          customer.storeId = customer.storeId || this.currentStoreId;
+          await this.saveCustomer(customer);
+
+          // Vincular y registrar como Remito de mercadería retirada para seguimiento detallado
+          const retNumber = sale.invoiceType === 'REMITO'
+            ? sale.invoiceNumber.replace(/^FC-/, 'REM-')
+            : `REM-${sale.invoiceNumber.replace(/^(FC-|TK-|REM-)/, '')}`;
+          const withdrawalId = `with-sale-${sale.id}`;
+
+          const withdrawal: CustomerWithdrawal = {
+            id: withdrawalId,
+            withdrawalNumber: retNumber,
+            customerId: customer.id,
+            customerName: customer.name,
+            date: sale.date || new Date().toISOString(),
+            items: sale.items.map(i => ({
+              productId: i.productId,
+              productCode: i.code,
+              productName: i.productName,
+              quantity: i.quantity,
+              unitPrice: i.unitPrice,
+              totalPrice: i.subtotal
+            })),
+            totalAmount: ccAmount,
+            status: 'pending',
+            notes: sale.notes ? `${sale.notes} (Venta ${sale.invoiceNumber})` : `Generado automáticamente desde Venta ${sale.invoiceNumber}`,
+            authorizedBy: 'Venta Mostrador',
+            storeId: this.currentStoreId,
+            saleId: sale.id,
+            invoiceNumber: sale.invoiceNumber,
+            paidAmount: 0,
+            remainingAmount: ccAmount
+          };
+          await this.saveToSupabase('withdrawals', withdrawal);
+
+          const itemsSummary = (sale.items || []).map(i => `${i.quantity}x ${i.productName}`).join(', ');
+          const tx: CustomerTransaction = {
+            id: `tx-sale-${sale.id}`,
+            storeId: this.currentStoreId,
+            customerId: sale.customerId,
+            customerName: customer.name,
+            type: 'sale',
+            amount: ccAmount,
+            balanceAfter: newBalance,
+            date: sale.date || new Date().toISOString(),
+            description: `Venta ${sale.invoiceType === 'REMITO' ? 'Remito' : 'Cta. Cte.'} #${sale.invoiceNumber}${itemsSummary ? ' (' + itemsSummary + ')' : ''}`,
+            saleId: sale.id,
+            withdrawalId: withdrawal.id
+          };
+          await this.saveCustomerTransaction(tx);
+        }
+      }
+    }
+
+    // Impactar en la Caja si hubo pago en efectivo
+    let cashPortion = 0;
+    if (sale.paymentMethod === 'cash') {
+      cashPortion = Number(sale.totalAmount) || 0;
+    } else if (sale.paymentMethod === 'mixed' && Array.isArray(sale.paymentsBreakdown)) {
+      const cashPart = sale.paymentsBreakdown.find(p => p.method === 'cash');
+      if (cashPart) cashPortion = Number(cashPart.amount) || 0;
+    }
+
+    if (cashPortion > 0) {
+      const openRegister = this.state.cashRegisters.find(
+        c => c.status === 'open' && (!c.storeId || c.storeId === this.currentStoreId)
+      );
+      if (openRegister) {
+        openRegister.cashSales = (Number(openRegister.cashSales) || 0) + cashPortion;
+        openRegister.expectedTotal = (Number(openRegister.expectedTotal) || 0) + cashPortion;
+        if (!Array.isArray(openRegister.movements)) {
+          openRegister.movements = [];
+        }
+        openRegister.movements.unshift({
+          id: `mov-sale-${sale.id}`,
+          type: 'in',
+          amount: cashPortion,
+          description: `Venta contado #${sale.invoiceNumber}`,
+          category: 'sale',
+          date: sale.date || new Date().toISOString(),
+          paymentMethod: 'cash'
+        });
+        await this.saveCashRegister(openRegister);
+      }
+    }
   }
 
   public static async saveCustomer(customer: Customer) {
@@ -604,38 +892,172 @@ export class DataService {
     await this.saveToSupabase('customerTransactions', { ...tx, storeId: this.currentStoreId });
   }
 
+  public static async registerCustomerCharge(params: {
+    customerId: string;
+    amount: number;
+    description: string;
+    date?: string;
+    reference?: string;
+  }) {
+    const customer = this.state.customers.find(c => c.id === params.customerId);
+    if (!customer) return;
+
+    const previousBalance = Number(customer.currentBalance) || 0;
+    const newBalance = previousBalance + Number(params.amount);
+    customer.currentBalance = newBalance;
+    customer.updatedAt = new Date().toISOString();
+
+    await this.saveToSupabase('customers', customer);
+
+    const transaction: CustomerTransaction = {
+      id: `tx-chg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      customerId: params.customerId,
+      customerName: customer.name,
+      date: params.date || new Date().toISOString(),
+      type: 'charge',
+      amount: Number(params.amount),
+      description: params.description || 'Cargo a Cuenta Corriente / Mercadería Retirada',
+      balanceAfter: newBalance,
+      reference: params.reference
+    };
+
+    await this.saveToSupabase('customerTransactions', transaction);
+    return transaction;
+  }
+
   public static async registerCustomerPayment(params: {
     customerId: string;
     amount: number;
     paymentMethod: string;
     notes?: string;
+    isPartial?: boolean;
+    nextPromiseDate?: string;
+    date?: string;
+    paidWithdrawalIds?: string[];
   }) {
     const customer = this.state.customers.find(c => c.id === params.customerId);
     if (!customer) return;
 
-    const previousBalance = customer.currentBalance;
-    const newBalance = previousBalance - params.amount;
+    const previousBalance = Number(customer.currentBalance) || 0;
+    const paymentAmt = Number(params.amount) || 0;
+    const newBalance = Math.round((previousBalance - paymentAmt) * 100) / 100;
     customer.currentBalance = newBalance;
+    customer.lastPaymentDate = params.date || new Date().toISOString();
+    customer.lastPaymentAmount = paymentAmt;
+    customer.updatedAt = new Date().toISOString();
 
-    await this.saveToSupabase('customers', customer);
+    if (params.nextPromiseDate) {
+      customer.nextPaymentPromiseDate = params.nextPromiseDate;
+    } else if (newBalance <= 0) {
+      customer.nextPaymentPromiseDate = undefined;
+    }
+
+    await this.saveCustomer(customer);
+
+    // Imputar pago a los remitos seleccionados
+    const updatedWithdrawals: CustomerWithdrawal[] = [];
+    if (params.paidWithdrawalIds && params.paidWithdrawalIds.length > 0) {
+      let remainingMoney = paymentAmt;
+      for (const wId of params.paidWithdrawalIds) {
+        const w = this.state.withdrawals.find(item => item.id === wId);
+        if (!w || remainingMoney <= 0) continue;
+
+        const prevPaid = Number(w.paidAmount) || 0;
+        const currentRemaining = w.remainingAmount !== undefined 
+          ? Number(w.remainingAmount) 
+          : Math.max(0, Number(w.totalAmount) - prevPaid);
+
+        if (currentRemaining <= 0) continue;
+
+        const paymentForThis = Math.min(remainingMoney, currentRemaining);
+        const newPaid = Math.round((prevPaid + paymentForThis) * 100) / 100;
+        const newRemaining = Math.max(0, Math.round((Number(w.totalAmount) - newPaid) * 100) / 100);
+
+        w.paidAmount = newPaid;
+        w.remainingAmount = newRemaining;
+        w.status = newRemaining <= 0 ? 'paid' : 'partial';
+
+        await this.saveToSupabase('withdrawals', w);
+        updatedWithdrawals.push(w);
+        remainingMoney -= paymentForThis;
+      }
+    }
+
+    const isPartialPayment = params.isPartial !== undefined ? params.isPartial : newBalance > 0;
+    
+    let defaultDesc = '';
+    if (updatedWithdrawals.length > 0) {
+      const remitoNums = updatedWithdrawals.map(w => w.withdrawalNumber).join(', ');
+      defaultDesc = `Pago de Remito(s) ${remitoNums} (${params.paymentMethod})`;
+      if (newBalance < 0) {
+        defaultDesc += ` - Saldo a favor resultante: +$${Math.abs(newBalance).toLocaleString('es-AR')}`;
+      } else if (newBalance > 0) {
+        defaultDesc += ` - Resta saldo total: $${newBalance.toLocaleString('es-AR')}`;
+      }
+    } else {
+      if (newBalance < 0) {
+        defaultDesc = `Entrega a cuenta (${params.paymentMethod}) - Saldo a favor: +$${Math.abs(newBalance).toLocaleString('es-AR')}`;
+      } else if (isPartialPayment) {
+        defaultDesc = `Pago Parcial / Entrega a cuenta (${params.paymentMethod}) - Resta: $${newBalance.toLocaleString('es-AR')}`;
+      } else {
+        defaultDesc = `Cancelación Total de Saldo (${params.paymentMethod})`;
+      }
+    }
 
     const transaction: CustomerTransaction = {
-      id: `tx-${Date.now()}`,
+      id: `tx-pay-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      storeId: this.currentStoreId,
       customerId: params.customerId,
       customerName: customer.name,
-      date: new Date().toISOString(),
+      date: params.date || new Date().toISOString(),
       type: 'payment',
-      amount: params.amount,
-      description: params.notes || `Cobranza / Pago recibido (${params.paymentMethod})`,
+      amount: paymentAmt,
+      description: params.notes ? params.notes : defaultDesc,
       balanceAfter: newBalance,
-      reference: `REC-${Date.now().toString().slice(-6)}`
+      reference: `REC-${Date.now().toString().slice(-6)}`,
+      paymentMethod: params.paymentMethod,
+      isPartial: isPartialPayment,
+      remainingBalance: newBalance,
+      nextPromiseDate: params.nextPromiseDate,
+      paidWithdrawalIds: params.paidWithdrawalIds
     };
 
-    await this.saveToSupabase('customerTransactions', transaction);
+    await this.saveCustomerTransaction(transaction);
+
+    // Impactar en la Caja si el pago de cuenta corriente fue en efectivo
+    if (params.paymentMethod === 'cash') {
+      const openRegister = this.state.cashRegisters.find(
+        c => c.status === 'open' && (!c.storeId || c.storeId === this.currentStoreId)
+      );
+      if (openRegister) {
+        openRegister.accountPayments = (Number(openRegister.accountPayments) || 0) + paymentAmt;
+        openRegister.expectedTotal = (Number(openRegister.expectedTotal) || 0) + paymentAmt;
+        if (!Array.isArray(openRegister.movements)) {
+          openRegister.movements = [];
+        }
+        openRegister.movements.unshift({
+          id: `mov-pay-${transaction.id}`,
+          type: 'in',
+          amount: paymentAmt,
+          description: `Cobro Cta. Cte. ${customer.name}`,
+          category: 'customer_payment',
+          date: transaction.date,
+          paymentMethod: 'cash'
+        });
+        await this.saveCashRegister(openRegister);
+      }
+    }
+
+    return transaction;
   }
 
   public static async registerWithdrawal(withdrawal: CustomerWithdrawal) {
-    const withStore = { ...withdrawal, storeId: this.currentStoreId };
+    const withStore: CustomerWithdrawal = {
+      ...withdrawal,
+      paidAmount: withdrawal.paidAmount || 0,
+      remainingAmount: withdrawal.remainingAmount !== undefined ? withdrawal.remainingAmount : withdrawal.totalAmount,
+      storeId: this.currentStoreId
+    };
     await this.saveToSupabase('withdrawals', withStore);
 
     // Deduct stock for withdrawn items
@@ -660,9 +1082,36 @@ export class DataService {
         });
       }
     }
+
+    // Impactar en la cuenta corriente del cliente como mercadería retirada
+    if (withdrawal.customerId && withdrawal.totalAmount > 0) {
+      const customer = this.state.customers.find(c => c.id === withdrawal.customerId);
+      if (customer) {
+        const prevBalance = Number(customer.currentBalance) || 0;
+        const newBalance = prevBalance + withdrawal.totalAmount;
+        customer.currentBalance = newBalance;
+        customer.updatedAt = new Date().toISOString();
+        await this.saveCustomer(customer);
+
+        const itemsSummary = (withdrawal.items || []).map(i => `${i.quantity}x ${i.productName}`).join(', ');
+        const tx: CustomerTransaction = {
+          id: `tx-with-${withdrawal.id}`,
+          storeId: this.currentStoreId,
+          customerId: withdrawal.customerId,
+          customerName: customer.name,
+          type: 'withdrawal_billing',
+          amount: withdrawal.totalAmount,
+          balanceAfter: newBalance,
+          date: withdrawal.date || new Date().toISOString(),
+          description: `Retiro de Mercadería #${withdrawal.withdrawalNumber}${itemsSummary ? ' (' + itemsSummary + ')' : ''}`,
+          withdrawalId: withdrawal.id
+        };
+        await this.saveCustomerTransaction(tx);
+      }
+    }
   }
 
-  public static async updateWithdrawalStatus(withdrawalId: string, status: 'pending' | 'billed' | 'cancelled') {
+  public static async updateWithdrawalStatus(withdrawalId: string, status: WithdrawalStatus) {
     const withdrawal = this.state.withdrawals.find(w => w.id === withdrawalId);
     if (withdrawal) {
       withdrawal.status = status;
@@ -813,9 +1262,51 @@ export class DataService {
   public static async annulSale(saleId: string): Promise<{ success: boolean; error?: string }> {
     try {
       const sale = this.state.sales.find(s => s.id === saleId);
-      if (sale) {
+      if (sale && sale.status !== 'cancelled') {
         const updatedSale = { ...sale, status: 'cancelled' as const };
         await this.saveToSupabase('sales', updatedSale);
+
+        // Revertir remito si se generó para esta venta
+        const relatedWithdrawal = this.state.withdrawals.find(w => w.saleId === saleId || w.id === `with-sale-${saleId}`);
+        if (relatedWithdrawal) {
+          relatedWithdrawal.status = 'cancelled';
+          await this.saveToSupabase('withdrawals', relatedWithdrawal);
+        }
+
+        // Revertir deuda en cuenta corriente si aplicaba
+        if (sale.customerId) {
+          let ccAmount = 0;
+          if (sale.paymentMethod === 'current_account' || sale.invoiceType === 'REMITO') {
+            ccAmount = sale.totalAmount;
+          } else if (sale.paymentsBreakdown) {
+            const ccPart = sale.paymentsBreakdown.find(p => p.method === 'current_account');
+            if (ccPart) ccAmount = ccPart.amount;
+          }
+
+          if (ccAmount > 0) {
+            const customer = this.state.customers.find(c => c.id === sale.customerId);
+            if (customer) {
+              const newBal = Math.round(((customer.currentBalance || 0) - ccAmount) * 100) / 100;
+              customer.currentBalance = newBal;
+              customer.updatedAt = new Date().toISOString();
+              await this.saveCustomer(customer);
+
+              const tx: CustomerTransaction = {
+                id: `tx-annul-${Date.now()}`,
+                storeId: this.currentStoreId,
+                customerId: sale.customerId,
+                customerName: customer.name,
+                type: 'adjustment',
+                amount: ccAmount,
+                balanceAfter: newBal,
+                date: new Date().toISOString(),
+                description: `Anulación Venta #${sale.invoiceNumber} (-$${ccAmount.toLocaleString('es-AR')})`,
+                saleId: sale.id
+              };
+              await this.saveCustomerTransaction(tx);
+            }
+          }
+        }
       }
       return { success: true };
     } catch (err: any) {

@@ -371,13 +371,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {isSyncing ? '...' : 'Subir'}
                 </button>
               )}
-              <button
-                onClick={handleResetDemo}
-                className="text-slate-400 hover:text-indigo-300 p-1 rounded hover:bg-slate-800"
-                title="Restaurar datos demo"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-              </button>
+              {(currentUser?.role === 'superadmin' || currentUser?.username === 'admin') && (
+                <button
+                  onClick={handleResetDemo}
+                  className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-slate-800"
+                  title="Restaurar datos demo (Solo Administrador Principal)"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </div>

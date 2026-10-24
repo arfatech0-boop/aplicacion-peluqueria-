@@ -23,6 +23,7 @@ import {
 import { AppState } from '../types';
 import { generateMonthlyReportPDF } from '../utils/pdfGenerator';
 import { exportSalesExcel } from '../utils/excelExporter';
+import { Pagination } from './Pagination';
 
 interface ReportsViewProps {
   appState: AppState;
@@ -93,7 +94,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ appState }) => {
   const grossProfit = totalRevenue - totalCost;
   const marginPercentage = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0.0';
 
+  const [rankingPage, setRankingPage] = useState(1);
+  const [rankingPageSize, setRankingPageSize] = useState(10);
+
   const productRanking = Array.from(productPerformanceMap.values()).sort((a, b) => b.revenue - a.revenue);
+  const paginatedRanking = productRanking.slice(
+    (rankingPage - 1) * rankingPageSize,
+    rankingPage * rankingPageSize
+  );
 
   // Chart data
   const chartData = productRanking.slice(0, 8).map(p => ({
@@ -123,7 +131,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ appState }) => {
           {/* Month / Year selector */}
           <select
             value={selectedMonth}
-            onChange={e => setSelectedMonth(Number(e.target.value))}
+            onChange={e => {
+              setSelectedMonth(Number(e.target.value));
+              setRankingPage(1);
+            }}
             className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
           >
             {months.map(m => (
@@ -133,7 +144,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ appState }) => {
 
           <select
             value={selectedYear}
-            onChange={e => setSelectedYear(Number(e.target.value))}
+            onChange={e => {
+              setSelectedYear(Number(e.target.value));
+              setRankingPage(1);
+            }}
             className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
           >
             <option value={2026}>2026</option>
@@ -281,13 +295,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ appState }) => {
                   </td>
                 </tr>
               ) : (
-                productRanking.map((prod, index) => {
+                paginatedRanking.map((prod, index) => {
                   const prodProfit = prod.revenue - prod.cost;
                   const pct = totalRevenue > 0 ? ((prod.revenue / totalRevenue) * 100).toFixed(1) : '0';
+                  const position = (rankingPage - 1) * rankingPageSize + index + 1;
 
                   return (
                     <tr key={prod.id} className="hover:bg-slate-50">
-                      <td className="px-6 py-3.5 font-bold text-slate-400">#{index + 1}</td>
+                      <td className="px-6 py-3.5 font-bold text-slate-400">#{position}</td>
                       <td className="px-6 py-3.5 font-bold text-slate-900">{prod.name}</td>
                       <td className="px-6 py-3.5">
                         <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">
@@ -305,6 +320,16 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ appState }) => {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={rankingPage}
+          totalItems={productRanking.length}
+          pageSize={rankingPageSize}
+          onPageChange={setRankingPage}
+          onPageSizeChange={setRankingPageSize}
+          pageSizeOptions={[5, 10, 20, 50]}
+          itemLabel="productos"
+        />
       </div>
     </div>
   );

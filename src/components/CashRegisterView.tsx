@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { AppState, CashRegister, CashMovement } from '../types';
 import { DataService } from '../services/dataService';
+import { Pagination } from './Pagination';
 
 interface CashRegisterViewProps {
   appState: AppState;
@@ -32,6 +33,16 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   const [isBlindCountMode, setIsBlindCountMode] = useState(false);
   const [actualCashCounted, setActualCashCounted] = useState<number | ''>('');
+
+  // Pagination states for daily movements
+  const [movPage, setMovPage] = useState(1);
+  const [movPageSize, setMovPageSize] = useState(10);
+
+  const movementsList = currentRegister?.movements || [];
+  const paginatedMovements = movementsList.slice(
+    (movPage - 1) * movPageSize,
+    movPage * movPageSize
+  );
 
   const handleOpenRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,7 +216,7 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
                   </td>
                 </tr>
               ) : (
-                currentRegister.movements.map(mov => (
+                paginatedMovements.map(mov => (
                   <tr key={mov.id} className="hover:bg-slate-50">
                     <td className="px-6 py-3 text-slate-500">{new Date(mov.date).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</td>
                     <td className="px-6 py-3 font-medium text-slate-800">{mov.description}</td>
@@ -218,6 +229,16 @@ export const CashRegisterView: React.FC<CashRegisterViewProps> = ({ appState }) 
               )}
             </tbody>
           </table>
+
+          <Pagination
+            currentPage={movPage}
+            totalItems={movementsList.length}
+            pageSize={movPageSize}
+            onPageChange={setMovPage}
+            onPageSizeChange={setMovPageSize}
+            pageSizeOptions={[5, 10, 20]}
+            itemLabel="movimientos"
+          />
         </div>
       )}
 

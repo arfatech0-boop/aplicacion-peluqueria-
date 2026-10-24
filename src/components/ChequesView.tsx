@@ -14,6 +14,7 @@ import {
 import { AppState, Cheque, ChequeStatus } from '../types';
 import { DataService } from '../services/dataService';
 import { exportChequesExcel } from '../utils/excelExporter';
+import { Pagination } from './Pagination';
 
 interface ChequesViewProps {
   appState: AppState;
@@ -37,6 +38,20 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ appState }) => {
       (c.customerName && c.customerName.toLowerCase().includes(q));
     return matchesStatus && matchesSearch;
   });
+
+  // Pagination states
+  const [chequePage, setChequePage] = useState(1);
+  const [chequePageSize, setChequePageSize] = useState(10);
+
+  // Reset page when search or status changes
+  React.useEffect(() => {
+    setChequePage(1);
+  }, [searchQuery, statusFilter]);
+
+  const paginatedCheques = filteredCheques.slice(
+    (chequePage - 1) * chequePageSize,
+    chequePage * chequePageSize
+  );
 
   const totalWalletAmount = appState.cheques
     .filter(c => c.status === 'in_wallet' || c.status === 'pending')
@@ -195,7 +210,7 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ appState }) => {
                   </td>
                 </tr>
               ) : (
-                filteredCheques.map(cheque => {
+                paginatedCheques.map(cheque => {
                   const isDueSoon = new Date(cheque.dueDate).getTime() - Date.now() < 3 * 86400000 && cheque.status === 'in_wallet';
 
                   return (
@@ -279,6 +294,16 @@ export const ChequesView: React.FC<ChequesViewProps> = ({ appState }) => {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={chequePage}
+          totalItems={filteredCheques.length}
+          pageSize={chequePageSize}
+          onPageChange={setChequePage}
+          onPageSizeChange={setChequePageSize}
+          pageSizeOptions={[5, 10, 20, 50]}
+          itemLabel="cheques"
+        />
       </div>
 
       {/* Cheque Modal */}

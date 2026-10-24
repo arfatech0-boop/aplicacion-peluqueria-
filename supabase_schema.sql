@@ -1,22 +1,8 @@
 -- Script para crear las tablas de la base de datos en Supabase
--- IMPORTANTE: Ejecutar esto en el SQL Editor de Supabase
-
-DROP TABLE IF EXISTS "users" CASCADE;
-DROP TABLE IF EXISTS "stores" CASCADE;
-DROP TABLE IF EXISTS "storeInfo" CASCADE;
-DROP TABLE IF EXISTS "products" CASCADE;
-DROP TABLE IF EXISTS "suppliers" CASCADE;
-DROP TABLE IF EXISTS "priceIncreaseLogs" CASCADE;
-DROP TABLE IF EXISTS "customers" CASCADE;
-DROP TABLE IF EXISTS "customerTransactions" CASCADE;
-DROP TABLE IF EXISTS "withdrawals" CASCADE;
-DROP TABLE IF EXISTS "sales" CASCADE;
-DROP TABLE IF EXISTS "cheques" CASCADE;
-DROP TABLE IF EXISTS "cashRegisters" CASCADE;
-DROP TABLE IF EXISTS "stockMovements" CASCADE;
+-- MODO SEGURO: Creación idempotente con IF NOT EXISTS (sin destrucción de datos existentes)
 
 -- Table: stores
-CREATE TABLE "stores" (
+CREATE TABLE IF NOT EXISTS "stores" (
   "id" text PRIMARY KEY,
   "name" text NOT NULL,
   "cuit" text,
@@ -32,7 +18,7 @@ CREATE TABLE "stores" (
 );
 
 -- Table: storeInfo
-CREATE TABLE "storeInfo" (
+CREATE TABLE IF NOT EXISTS "storeInfo" (
   "storeId" text PRIMARY KEY,
   "name" text,
   "cuit" text,
@@ -57,7 +43,7 @@ CREATE TABLE "storeInfo" (
 );
 
 -- Table: users
-CREATE TABLE "users" (
+CREATE TABLE IF NOT EXISTS "users" (
   "id" text PRIMARY KEY,
   "storeId" text,
   "username" text NOT NULL,
@@ -72,7 +58,7 @@ CREATE TABLE "users" (
 );
 
 -- Table: products
-CREATE TABLE "products" (
+CREATE TABLE IF NOT EXISTS "products" (
   "id" text PRIMARY KEY,
   "storeId" text,
   "code" text,
@@ -92,7 +78,7 @@ CREATE TABLE "products" (
 );
 
 -- Table: suppliers
-CREATE TABLE "suppliers" (
+CREATE TABLE IF NOT EXISTS "suppliers" (
   "id" text PRIMARY KEY,
   "storeId" text,
   "name" text NOT NULL,
@@ -104,7 +90,7 @@ CREATE TABLE "suppliers" (
 );
 
 -- Table: priceIncreaseLogs
-CREATE TABLE "priceIncreaseLogs" (
+CREATE TABLE IF NOT EXISTS "priceIncreaseLogs" (
   "id" text PRIMARY KEY,
   "storeId" text,
   "supplierId" text,
@@ -119,7 +105,7 @@ CREATE TABLE "priceIncreaseLogs" (
 );
 
 -- Table: customers
-CREATE TABLE "customers" (
+CREATE TABLE IF NOT EXISTS "customers" (
   "id" text PRIMARY KEY,
   "storeId" text,
   "name" text NOT NULL,
@@ -134,10 +120,11 @@ CREATE TABLE "customers" (
 );
 
 -- Table: customerTransactions
-CREATE TABLE "customerTransactions" (
+CREATE TABLE IF NOT EXISTS "customerTransactions" (
   "id" text PRIMARY KEY,
   "storeId" text,
   "customerId" text,
+  "customerName" text,
   "type" text,
   "amount" numeric,
   "balanceAfter" numeric,
@@ -145,11 +132,12 @@ CREATE TABLE "customerTransactions" (
   "description" text,
   "saleId" text,
   "withdrawalId" text,
-  "receiptNumber" text
+  "receiptNumber" text,
+  "reference" text
 );
 
 -- Table: withdrawals
-CREATE TABLE "withdrawals" (
+CREATE TABLE IF NOT EXISTS "withdrawals" (
   "id" text PRIMARY KEY,
   "storeId" text,
   "withdrawalNumber" text,
@@ -164,7 +152,7 @@ CREATE TABLE "withdrawals" (
 );
 
 -- Table: sales
-CREATE TABLE "sales" (
+CREATE TABLE IF NOT EXISTS "sales" (
   "id" text PRIMARY KEY,
   "storeId" text,
   "invoiceNumber" text,
@@ -191,7 +179,7 @@ CREATE TABLE "sales" (
 );
 
 -- Table: cheques
-CREATE TABLE "cheques" (
+CREATE TABLE IF NOT EXISTS "cheques" (
   "id" text PRIMARY KEY,
   "storeId" text,
   "number" text,
@@ -208,7 +196,7 @@ CREATE TABLE "cheques" (
 );
 
 -- Table: cashRegisters
-CREATE TABLE "cashRegisters" (
+CREATE TABLE IF NOT EXISTS "cashRegisters" (
   "id" text PRIMARY KEY,
   "storeId" text,
   "openDate" text,
@@ -226,7 +214,7 @@ CREATE TABLE "cashRegisters" (
 );
 
 -- Table: stockMovements
-CREATE TABLE "stockMovements" (
+CREATE TABLE IF NOT EXISTS "stockMovements" (
   "id" text PRIMARY KEY,
   "storeId" text,
   "productId" text,

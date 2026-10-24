@@ -20,7 +20,7 @@ import {
   RefreshCw,
   ExternalLink
 } from 'lucide-react';
-import { StoreInfo, BusinessRubro, TaxCondition, InvoiceType } from '../types';
+import { StoreInfo, BusinessRubro, TaxCondition, InvoiceType, SystemUser } from '../types';
 import { DataService } from '../services/dataService';
 import { getCatalogForRubro } from '../data/rubroCatalogs';
 
@@ -28,6 +28,7 @@ interface StoreSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   storeInfo: StoreInfo;
+  currentUser?: SystemUser | null;
 }
 
 interface PresetRubro {
@@ -125,7 +126,13 @@ const RUBRO_PRESETS: PresetRubro[] = [
   }
 ];
 
-export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, onClose, storeInfo }) => {
+export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, onClose, storeInfo, currentUser }) => {
+  const isMasterAdmin = Boolean(
+    currentUser?.role === 'superadmin' || 
+    currentUser?.username === 'admin' || 
+    currentUser?.username === 'facu123'
+  );
+
   const [formData, setFormData] = useState<StoreInfo>({
     name: storeInfo.name || '',
     cuit: storeInfo.cuit || '',
@@ -161,6 +168,9 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
 
   React.useEffect(() => {
     if (isOpen) {
+      if (!isMasterAdmin) {
+        setActiveTab('profile');
+      }
       setFormData({
         name: storeInfo.name || '',
         cuit: storeInfo.cuit || '',
@@ -313,9 +323,15 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
 
     try {
       setIsSaving(true);
-      await DataService.updateStoreInfo(formData);
+      const payloadToSave: StoreInfo = {
+        ...formData,
+        // Si no es administrador, no se permite alterar el rubro
+        businessType: isMasterAdmin ? formData.businessType : (storeInfo.businessType || formData.businessType)
+      };
 
-      if (shouldReplaceCatalog) {
+      await DataService.updateStoreInfo(payloadToSave);
+
+      if (isMasterAdmin && shouldReplaceCatalog) {
         const catalog = getCatalogForRubro(formData.businessType);
         await DataService.replaceProducts(catalog);
       }
@@ -344,7 +360,11 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black tracking-tight">Configuración del Comercio</h2>
-              <p className="text-xs text-slate-400">Datos fiscales, logotipo de facturación, rubro y categorías</p>
+              <p className="text-xs text-slate-400">
+                {isMasterAdmin 
+                  ? 'Datos fiscales, logotipo de facturación, rubro y categorías' 
+                  : 'Datos fiscales, logotipo de facturación y categorías'}
+              </p>
             </div>
           </div>
           <button
@@ -356,7 +376,7 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
         </div>
 
         {/* Modal Nav Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 p-2 sm:p-2.5 bg-slate-100 border-b border-slate-200 flex-shrink-0">
+        <div className={`grid ${isMasterAdmin ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} gap-1.5 sm:gap-2 p-2 sm:p-2.5 bg-slate-100 border-b border-slate-200 flex-shrink-0`}>
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
@@ -370,18 +390,20 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
             <span className="truncate">Datos Negocio</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('rubro')}
-            className={`py-2 px-2 sm:px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 sm:space-x-2 ${
-              activeTab === 'rubro'
-                ? 'bg-white text-indigo-700 shadow-xs border border-indigo-200 font-extrabold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
-          >
-            <Briefcase className="w-4 h-4 flex-shrink-0 text-indigo-600" />
-            <span className="truncate">Rubro & Plantilla</span>
-          </button>
+          {isMasterAdmin && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('rubro')}
+              className={`py-2 px-2 sm:px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 sm:space-x-2 ${
+                activeTab === 'rubro'
+                  ? 'bg-white text-indigo-700 shadow-xs border border-indigo-200 font-extrabold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Briefcase className="w-4 h-4 flex-shrink-0 text-indigo-600" />
+              <span className="truncate">Rubro & Plantilla</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -588,8 +610,8 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
             </div>
           )}
 
-          {/* TAB 2: RUBRO & PLANTILLA PRESETEADA */}
-          {activeTab === 'rubro' && (
+          {/* TAB 2: RUBRO & PLANTILLA PRESETEADA (SOLO ADMINISTRADOR) */}
+          {isMasterAdmin && activeTab === 'rubro' && (
             <div className="space-y-4">
               <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-900 flex items-start justify-between gap-3">
                 <div>
@@ -956,8 +978,14 @@ export const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({ isOpen, 
 
           {/* Footer Save Button - Sticky and always visible on mobile and desktop */}
           <div className="p-3 sm:p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 flex-shrink-0">
-            <div className="text-[11px] sm:text-xs text-slate-500 truncate max-w-[40%] sm:max-w-[50%]">
-              Rubro: <strong className="text-slate-800">{formData.businessType}</strong>
+            <div className="text-[11px] sm:text-xs text-slate-500 truncate max-w-[40%] sm:max-w-[50%] flex items-center space-x-1.5">
+              <span>Rubro:</span>
+              <strong className="text-slate-800">{formData.businessType}</strong>
+              {!isMasterAdmin && (
+                <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-normal" title="Configurado por el Administrador">
+                  Fijo
+                </span>
+              )}
             </div>
 
             <div className="flex items-center space-x-2">

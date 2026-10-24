@@ -14,11 +14,13 @@ import {
   ArrowUpDown,
   CornerDownLeft,
   Keyboard,
-  RotateCcw
+  RotateCcw,
+  Scale
 } from 'lucide-react';
 import { AppState, Product, Customer, PaymentMethod, SaleItem, Sale, InvoiceType, TaxCondition } from '../types';
 import { DataService } from '../services/dataService';
 import { generateSaleInvoicePDF, generateThermalTicketPDF, printThermalTicketDirect, generateQuotationPDF } from '../utils/pdfGenerator';
+import { Pagination } from './Pagination';
 
 interface POSViewProps {
   appState: AppState;
@@ -36,6 +38,7 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
   const [amountPaidCash, setAmountPaidCash] = useState<number | ''>('');
   const [saleNotes, setSaleNotes] = useState('');
   const [lastCompletedSale, setLastCompletedSale] = useState<Sale | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Mixed Payment Breakdown State
   const [mixedCash, setMixedCash] = useState<number | ''>('');
@@ -75,6 +78,16 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
   const searchInputRef = useRef<HTMLInputElement>(null);
   const productRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  // Weight & Scale modal state (Venta por peso / fraccionamiento / gramos)
+  const [isWeightModalOpen, setIsWeightModalOpen] = useState<boolean>(false);
+  const [weightModalProduct, setWeightModalProduct] = useState<Product | null>(null);
+  const [isEditingCartItem, setIsEditingCartItem] = useState<boolean>(false);
+  const [weightMode, setWeightMode] = useState<'grams' | 'kilos' | 'money'>('grams');
+  const [weightGramsInput, setWeightGramsInput] = useState<string>('250');
+  const [weightKilosInput, setWeightKilosInput] = useState<string>('0.250');
+  const [weightMoneyInput, setWeightMoneyInput] = useState<string>('');
+  const weightInputRef = useRef<HTMLInputElement>(null);
+
   const categories = Array.from(
     new Set(appState.products.map(p => p.category).filter(Boolean))
   );
@@ -93,6 +106,17 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
     return matchesCategory && matchesSearch;
   });
 
+  // Catalog pagination state
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogPageSize, setCatalogPageSize] = useState(8);
+
+  const totalCatalogPages = Math.ceil(filteredProducts.length / catalogPageSize) || 1;
+
+  const paginatedProducts = filteredProducts.slice(
+    (catalogPage - 1) * catalogPageSize,
+    catalogPage * catalogPageSize
+  );
+
   const modalOpenedTimeRef = useRef<number>(0);
 
   // Focus search input on mount
@@ -109,7 +133,7 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
         searchInputRef.current?.select();
       } else if (e.key === 'F2') {
         e.preventDefault();
-        if (cart.length > 0) {
+        if (cart.length > 0 && !isSubmitting) {
           handleCompleteSale();
         }
       } else if (e.key === 'F4') {
@@ -131,30 +155,111 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
   // Reset keyboard selection whenever search query or category changes
   useEffect(() => {
     setSelectedIndex(0);
+    setCatalogPage(1);
   }, [searchQuery, selectedCategory]);
 
   // Scroll active product into view
   useEffect(() => {
-    if (filteredProducts.length > 0 && selectedIndex >= 0 && selectedIndex < filteredProducts.length) {
+    if (paginatedProducts.length > 0 && selectedIndex >= 0 && selectedIndex < paginatedProducts.length) {
       productRefs.current[selectedIndex]?.scrollIntoView({
         behavior: 'smooth',
         block: 'nearest'
       });
     }
-  }, [selectedIndex, filteredProducts.length]);
+  }, [selectedIndex, paginatedProducts.length]);
 
-  const addToCart = (product: Product, customQty?: number, customSubtotal?: number) => {
+  // Open Weight / Fraccionamiento Modal
+  const openWeightModal = (product: Product, isCartEdit: boolean = false, existingQty?: number) => {
+    setWeightModalProduct(product);
+    setIsEditingCartItem(isCartEdit);
+
+    const initialQty = existingQty && existingQty > 0 ? existingQty : (product.unit === 'gr' ? 100 : 0.25);
+    const initialGrams = product.unit === 'gr' ? initialQty : Math.round(initialQty * 1000);
+    const initialKilos = product.unit === 'gr' ? Math.round((initialQty / 1000) * 1000) / 1000 : initialQty;
+    const initialMoney = Math.round(initialQty * product.salePrice);
+
+    setWeightGramsInput(initialGrams.toString());
+    setWeightKilosInput(initialKilos.toString());
+    setWeightMoneyInput(initialMoney.toString());
+    setWeightMode(product.unit === 'gr' ? 'grams' : (initialQty < 1 ? 'grams' : 'kilos'));
+    setIsWeightModalOpen(true);
+
+    setTimeout(() => {
+      weightInputRef.current?.focus();
+      weightInputRef.current?.select();
+    }, 80);
+  };
+
+  // Compute live values for weight fraccionamiento
+  const getWeightCalculations = () => {
+    if (!weightModalProduct) return { qty: 0, subtotal: 0, grams: 0, kilos: 0 };
+    const price = weightModalProduct.salePrice || 0;
+    const isGrProduct = weightModalProduct.unit === 'gr';
+
+    let finalQty = 0;
+    let finalGrams = 0;
+    let finalKilos = 0;
+    let finalSubtotal = 0;
+
+    if (weightMode === 'grams') {
+      const g = parseFloat(weightGramsInput) || 0;
+      finalGrams = g;
+      finalKilos = Math.round((g / 1000) * 1000) / 1000;
+      finalQty = isGrProduct ? g : finalKilos;
+      finalSubtotal = Math.round(finalQty * price * 100) / 100;
+    } else if (weightMode === 'kilos') {
+      const k = parseFloat(weightKilosInput) || 0;
+      finalKilos = k;
+      finalGrams = Math.round(k * 1000);
+      finalQty = isGrProduct ? finalGrams : k;
+      finalSubtotal = Math.round(finalQty * price * 100) / 100;
+    } else if (weightMode === 'money') {
+      const m = parseFloat(weightMoneyInput) || 0;
+      finalSubtotal = m;
+      if (price > 0) {
+        if (isGrProduct) {
+          finalQty = Math.round((m / price) * 10) / 10;
+          finalGrams = finalQty;
+          finalKilos = Math.round((finalGrams / 1000) * 1000) / 1000;
+        } else {
+          finalQty = Math.round((m / price) * 1000) / 1000;
+          finalKilos = finalQty;
+          finalGrams = Math.round(finalKilos * 1000);
+        }
+      }
+    }
+
+    return { qty: finalQty, subtotal: finalSubtotal, grams: finalGrams, kilos: finalKilos };
+  };
+
+  const handleConfirmWeight = () => {
+    if (!weightModalProduct) return;
+    const { qty, subtotal } = getWeightCalculations();
+    if (qty <= 0) return;
+
+    addToCart(weightModalProduct, qty, subtotal, isEditingCartItem);
+    setIsWeightModalOpen(false);
+    setWeightModalProduct(null);
+    setSearchQuery('');
+    searchInputRef.current?.focus();
+  };
+
+  const addToCart = (product: Product, customQty?: number, customSubtotal?: number, replaceQty: boolean = false) => {
     setCart(prevCart => {
       const existing = prevCart.find(item => item.productId === product.id);
       const qtyToAdd = customQty !== undefined ? customQty : 1;
       const subtotalToAdd = customSubtotal !== undefined ? customSubtotal : (qtyToAdd * product.salePrice);
 
       if (existing) {
-        const newQty = Math.round((existing.quantity + qtyToAdd) * 1000) / 1000;
-        const newSubtotal = Math.round((existing.subtotal + subtotalToAdd) * 100) / 100;
+        const newQty = replaceQty
+          ? Math.round(qtyToAdd * 1000) / 1000
+          : Math.round((existing.quantity + qtyToAdd) * 1000) / 1000;
+        const newSubtotal = replaceQty
+          ? Math.round(subtotalToAdd * 100) / 100
+          : Math.round((existing.subtotal + subtotalToAdd) * 100) / 100;
         return prevCart.map(item =>
           item.productId === product.id
-            ? { ...item, quantity: newQty, subtotal: newSubtotal }
+            ? { ...item, quantity: newQty, subtotal: newSubtotal, unit: product.unit || item.unit || 'un' }
             : item
         );
       } else {
@@ -167,7 +272,8 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
             quantity: Math.round(qtyToAdd * 1000) / 1000,
             unitPrice: product.salePrice,
             costPrice: product.costPrice,
-            subtotal: Math.round(subtotalToAdd * 100) / 100
+            subtotal: Math.round(subtotalToAdd * 100) / 100,
+            unit: product.unit || 'un'
           }
         ];
       }
@@ -176,9 +282,13 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
 
   const handleSelectProduct = (product: Product, index: number) => {
     setSelectedIndex(index);
-    addToCart(product);
-    setRecentlyAddedId(product.id);
-    setTimeout(() => setRecentlyAddedId(null), 800);
+    if (product.unit === 'kg' || product.unit === 'gr') {
+      openWeightModal(product, false);
+    } else {
+      addToCart(product);
+      setRecentlyAddedId(product.id);
+      setTimeout(() => setRecentlyAddedId(null), 800);
+    }
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -192,10 +302,14 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
       );
 
       if (exactMatch) {
-        addToCart(exactMatch);
-        setRecentlyAddedId(exactMatch.id);
-        setTimeout(() => setRecentlyAddedId(null), 800);
-        setSearchQuery(''); // Clear search input for fast barcode scanning stream
+        if (exactMatch.unit === 'kg' || exactMatch.unit === 'gr') {
+          openWeightModal(exactMatch, false);
+        } else {
+          addToCart(exactMatch);
+          setRecentlyAddedId(exactMatch.id);
+          setTimeout(() => setRecentlyAddedId(null), 800);
+          setSearchQuery('');
+        }
         return;
       }
 
@@ -230,24 +344,28 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
         }
       }
 
-      // 3. Otherwise add selected product from filtered list
-      if (filteredProducts.length > 0) {
-        const targetProduct = filteredProducts[selectedIndex];
+      // 3. Otherwise add selected product from paginated list
+      if (paginatedProducts.length > 0) {
+        const targetProduct = paginatedProducts[selectedIndex] || paginatedProducts[0];
         if (targetProduct) {
-          addToCart(targetProduct);
-          setRecentlyAddedId(targetProduct.id);
-          setTimeout(() => setRecentlyAddedId(null), 800);
-          setSearchQuery(''); // Clear search input after selection
+          if (targetProduct.unit === 'kg' || targetProduct.unit === 'gr') {
+            openWeightModal(targetProduct, false);
+          } else {
+            addToCart(targetProduct);
+            setRecentlyAddedId(targetProduct.id);
+            setTimeout(() => setRecentlyAddedId(null), 800);
+            setSearchQuery('');
+          }
         }
       }
       return;
     }
 
-    if (filteredProducts.length === 0) return;
+    if (paginatedProducts.length === 0) return;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex(prev => Math.min(prev + 1, filteredProducts.length - 1));
+      setSelectedIndex(prev => Math.min(prev + 1, paginatedProducts.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIndex(prev => Math.max(prev - 1, 0));
@@ -261,14 +379,35 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
       prev
         .map(item => {
           if (item.productId === productId) {
-            const newQty = item.quantity + delta;
+            const isWeight = item.unit === 'kg' || item.unit === 'gr';
+            const effectiveDelta = (isWeight && Math.abs(delta) === 1)
+              ? (delta > 0 ? 0.1 : -0.1)
+              : delta;
+            const newQty = Math.round((item.quantity + effectiveDelta) * 1000) / 1000;
             return newQty > 0
-              ? { ...item, quantity: newQty, subtotal: newQty * item.unitPrice }
+              ? { ...item, quantity: newQty, subtotal: Math.round(newQty * item.unitPrice * 100) / 100 }
               : null;
           }
           return item;
         })
         .filter(Boolean) as SaleItem[]
+    );
+  };
+
+  const setCartQuantity = (productId: string, newQty: number) => {
+    if (isNaN(newQty) || newQty <= 0) return;
+    const roundedQty = Math.round(newQty * 1000) / 1000;
+    setCart(prev =>
+      prev.map(item => {
+        if (item.productId === productId) {
+          return {
+            ...item,
+            quantity: roundedQty,
+            subtotal: Math.round(roundedQty * item.unitPrice * 100) / 100
+          };
+        }
+        return item;
+      })
     );
   };
 
@@ -323,7 +462,7 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
   };
 
   const handleCompleteSale = async () => {
-    if (cart.length === 0) return;
+    if (isSubmitting || cart.length === 0) return;
 
     let paymentsBreakdown: { method: PaymentMethod; amount: number }[] | undefined = undefined;
 
@@ -382,61 +521,66 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
       }
     }
 
-    const prefix = appState.storeInfo?.invoicePrefix || '0001';
-    const nextInvoiceNum = `FC-${prefix}-${(appState.sales.length + 1052).toString().padStart(8, '0')}`;
-    const generatedCae = `743${Math.floor(10000000000 + Math.random() * 90000000000)}`;
-    const caeDueDate = new Date(Date.now() + 10 * 86400000).toLocaleDateString('es-AR');
-
-    const cuitOrDni = selectedCustomer?.dniCuit || customCuitDni || '20-00000000-0';
-    const taxCond: TaxCondition = selectedInvoiceType === 'FACTURA_A' ? 'Responsable Inscripto' : 'Consumidor Final / General';
-
-    const cardSurchargeVal = (paymentMethod === 'card' || (paymentsBreakdown && paymentsBreakdown.some(p => p.method === 'card'))) ? cardSurchargeAmount : 0;
-
-    const newSale: Sale = {
-      id: `sale-${Date.now()}`,
-      invoiceNumber: nextInvoiceNum,
-      invoiceType: selectedInvoiceType,
-      cae: generatedCae,
-      caeDueDate,
-      customerCuitDni: cuitOrDni,
-      customerTaxCondition: taxCond,
-      date: new Date().toISOString(),
-      customerId: selectedCustomer?.id,
-      customerName: selectedCustomer?.name || (selectedInvoiceType === 'FACTURA_A' ? 'Cliente Resp. Inscripto' : 'Consumidor Final'),
-      items: [...cart],
-      subtotal: cartSubtotal,
-      discount: discountAmount,
-      surcharge: cardSurchargeVal,
-      cardBankName: paymentMethod === 'card' ? selectedBankName : undefined,
-      totalAmount,
-      paymentMethod: effectivePaymentMethod,
-      paymentsBreakdown,
-      notes: saleNotes,
-      status: 'completed',
-      amountPaidCash: typeof amountPaidCash === 'number' ? amountPaidCash : undefined,
-      changeDue: changeDue > 0 ? changeDue : undefined
-    };
-
-    // 1. Record modal open time to prevent key repetition closing modal
-    modalOpenedTimeRef.current = Date.now();
-
-    // 2. Instantly trigger print modal and clear cart for immediate UI feedback
-    setLastCompletedSale(newSale);
-    setCart([]);
-    setDiscountAmount(0);
-    setAmountPaidCash('');
-    setMixedCash('');
-    setMixedCard('');
-    setMixedTransfer('');
-    setMixedCurrentAccount('');
-    setSaleNotes('');
-    setCustomCuitDni('');
-    setIsManualInvoiceType(false);
-    // 2. Process sale in data service / cloud database in background
+    setIsSubmitting(true);
     try {
+      const prefix = appState.storeInfo?.invoicePrefix || '0001';
+      const nextInvoiceNum = `FC-${prefix}-${(appState.sales.length + 1052).toString().padStart(8, '0')}`;
+      const generatedCae = `743${Math.floor(10000000000 + Math.random() * 90000000000)}`;
+      const caeDueDate = new Date(Date.now() + 10 * 86400000).toLocaleDateString('es-AR');
+
+      const cuitOrDni = selectedCustomer?.dniCuit || customCuitDni || '20-00000000-0';
+      const taxCond: TaxCondition = selectedInvoiceType === 'FACTURA_A' ? 'Responsable Inscripto' : 'Consumidor Final / General';
+
+      const cardSurchargeVal = (paymentMethod === 'card' || (paymentsBreakdown && paymentsBreakdown.some(p => p.method === 'card'))) ? cardSurchargeAmount : 0;
+
+      const newSale: Sale = {
+        id: `sale-${Date.now()}`,
+        invoiceNumber: nextInvoiceNum,
+        invoiceType: selectedInvoiceType,
+        cae: generatedCae,
+        caeDueDate,
+        customerCuitDni: cuitOrDni,
+        customerTaxCondition: taxCond,
+        date: new Date().toISOString(),
+        customerId: selectedCustomer?.id,
+        customerName: selectedCustomer?.name || (selectedInvoiceType === 'FACTURA_A' ? 'Cliente Resp. Inscripto' : 'Consumidor Final'),
+        items: [...cart],
+        subtotal: cartSubtotal,
+        discount: discountAmount,
+        surcharge: cardSurchargeVal,
+        cardBankName: paymentMethod === 'card' ? selectedBankName : undefined,
+        totalAmount,
+        paymentMethod: effectivePaymentMethod,
+        paymentsBreakdown,
+        notes: saleNotes,
+        status: 'completed',
+        amountPaidCash: typeof amountPaidCash === 'number' ? amountPaidCash : undefined,
+        changeDue: changeDue > 0 ? changeDue : undefined
+      };
+
+      // 1. Record modal open time to prevent key repetition closing modal
+      modalOpenedTimeRef.current = Date.now();
+
+      // 2. Instantly trigger print modal and clear cart for immediate UI feedback
+      setLastCompletedSale(newSale);
+      setCart([]);
+      setDiscountAmount(0);
+      setAmountPaidCash('');
+      setMixedCash('');
+      setMixedCard('');
+      setMixedTransfer('');
+      setMixedCurrentAccount('');
+      setSaleNotes('');
+      setCustomCuitDni('');
+      setIsManualInvoiceType(false);
+      setSelectedCustomer(null);
+
+      // 3. Process sale in data service / cloud database
       await DataService.processSale(newSale);
     } catch (err) {
       console.error('[POSView] Error saving sale to server:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -542,24 +686,62 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
             </div>
 
             {/* Keyboard Shortcuts Status Bar */}
-            <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5 px-0.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-0.5 px-0.5">
               <div className="flex items-center space-x-2">
                 <span className="flex items-center space-x-1 text-slate-600 font-mono font-medium text-[11px]">
                   <ArrowUpDown className="w-3.5 h-3.5 text-indigo-600 mr-0.5" />
-                  <span>Usa flechas para navegar productos</span>
+                  <span>Usa flechas para navegar</span>
                 </span>
               </div>
               {filteredProducts.length > 0 && (
-                <span className="font-semibold text-slate-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
-                  Seleccionado: <strong className="text-indigo-700 font-mono font-black">{selectedIndex + 1}</strong> de {filteredProducts.length}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="font-semibold text-slate-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                    Prod. <strong className="text-indigo-700 font-mono font-black">{selectedIndex + 1}</strong> de {paginatedProducts.length}
+                  </span>
+
+                  {/* Quick Mini Page Switcher */}
+                  <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-lg px-2 py-0.5 shadow-2xs">
+                    <button
+                      type="button"
+                      disabled={catalogPage <= 1}
+                      onClick={() => {
+                        setCatalogPage(prev => Math.max(1, prev - 1));
+                        setSelectedIndex(0);
+                      }}
+                      className="px-1 text-slate-600 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed font-black text-xs"
+                      title="Página anterior"
+                    >
+                      ‹
+                    </button>
+                    <span className="text-[11px] font-bold text-slate-700">
+                      Pág. {catalogPage} / {totalCatalogPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={catalogPage >= totalCatalogPages}
+                      onClick={() => {
+                        setCatalogPage(prev => Math.min(totalCatalogPages, prev + 1));
+                        setSelectedIndex(0);
+                      }}
+                      className="px-1 text-slate-600 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed font-black text-xs"
+                      title="Página siguiente"
+                    >
+                      ›
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
 
           {/* Product Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-[580px] overflow-y-auto px-1 pt-2 pb-3">
-            {filteredProducts.map((product, idx) => {
+            {paginatedProducts.length === 0 ? (
+              <div className="col-span-1 sm:col-span-2 py-12 text-center text-slate-400 bg-white rounded-2xl border border-slate-200 text-xs">
+                No se encontraron productos coincidentes con la búsqueda.
+              </div>
+            ) : (
+              paginatedProducts.map((product, idx) => {
               const isSelected = idx === selectedIndex;
               const isLow = product.stock <= product.minStock;
               const isOut = product.stock <= 0;
@@ -639,23 +821,81 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-lg font-black text-indigo-600 tracking-tight">${(product.salePrice || 0).toLocaleString('es-AR')}</span>
-                    <button
-                      disabled={isOut}
-                      className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center space-x-1.5 shadow-xs ${
-                        isSelected
-                          ? 'bg-indigo-600 text-white shadow-indigo-600/30'
-                          : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white'
-                      }`}
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Agregar</span>
-                    </button>
+                    <div>
+                      <span className="text-lg font-black text-indigo-600 tracking-tight">${(product.salePrice || 0).toLocaleString('es-AR')}</span>
+                      <span className="text-[10px] font-bold text-slate-400 ml-1">/{product.unit || 'un'}</span>
+                    </div>
+
+                    {product.unit === 'kg' || product.unit === 'gr' ? (
+                      <div className="flex items-center space-x-1.5">
+                        <button
+                          type="button"
+                          disabled={isOut}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedIndex(idx);
+                            openWeightModal(product, false);
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center space-x-1.5 shadow-xs bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95"
+                          title="Vender por gramos, balanza o monto en dinero"
+                        >
+                          <Scale className="w-3.5 h-3.5" />
+                          <span>Pesar / Gramos</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isOut}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addToCart(product, 1);
+                            setRecentlyAddedId(product.id);
+                            setTimeout(() => setRecentlyAddedId(null), 800);
+                          }}
+                          className="px-2 py-1.5 rounded-xl font-black text-[11px] transition-all bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
+                          title="Agregar 1 kg directo"
+                        >
+                          +1 {product.unit}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        disabled={isOut}
+                        className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center space-x-1.5 shadow-xs ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-indigo-600/30'
+                            : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white'
+                        }`}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Agregar</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
-            })}
+            }))}
           </div>
+
+          {filteredProducts.length > 0 && (
+            <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
+              <Pagination
+                currentPage={catalogPage}
+                totalItems={filteredProducts.length}
+                pageSize={catalogPageSize}
+                onPageChange={p => {
+                  setCatalogPage(p);
+                  setSelectedIndex(0);
+                }}
+                onPageSizeChange={s => {
+                  setCatalogPageSize(s);
+                  setCatalogPage(1);
+                  setSelectedIndex(0);
+                }}
+                pageSizeOptions={[6, 8, 12, 24]}
+                itemLabel="productos"
+              />
+            </div>
+          )}
         </div>
 
         {/* Right Column (Cart & Checkout): 5 cols */}
@@ -711,40 +951,87 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
               ) : (
                 cart.map(item => {
                   const linkedProd = appState.products.find(p => p.id === item.productId);
+                  const isWeightItem = item.unit === 'kg' || item.unit === 'gr';
                   return (
                     <div key={item.productId} className="flex items-center justify-between p-3 bg-slate-50/80 hover:bg-slate-100/80 rounded-xl text-xs border border-slate-200/80 transition-colors">
                       <div className="flex-1 pr-2">
-                        <span className="font-extrabold text-slate-900 block truncate">{item.productName}</span>
+                        <div className="flex items-center space-x-1.5 flex-wrap">
+                          <span className="font-extrabold text-slate-900 truncate">{item.productName}</span>
+                          {isWeightItem && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-indigo-100 text-indigo-700">
+                              {item.quantity < 1 && item.unit === 'kg' ? `${Math.round(item.quantity * 1000)}g` : `${item.quantity} ${item.unit || 'kg'}`}
+                            </span>
+                          )}
+                        </div>
                         {(linkedProd?.size || linkedProd?.color) && (
                           <span className="text-[10px] text-indigo-700 font-bold block">
                             {linkedProd.size ? `Talle: ${linkedProd.size}` : ''} {linkedProd.color ? `| Color: ${linkedProd.color}` : ''}
                           </span>
                         )}
-                        <span className="text-slate-500 text-[11px] font-medium">${item.unitPrice.toLocaleString('es-AR')} c/u</span>
+                        <span className="text-slate-500 text-[11px] font-medium">
+                          ${item.unitPrice.toLocaleString('es-AR')} {isWeightItem ? `/${item.unit || 'kg'}` : 'c/u'}
+                        </span>
                       </div>
 
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1.5">
                         <div className="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden shadow-2xs">
                           <button
+                            type="button"
                             onClick={() => updateQuantity(item.productId, -1)}
                             className="p-1 text-slate-600 hover:bg-slate-100 transition-colors"
+                            title={isWeightItem ? 'Restar 100g (0.1 kg)' : 'Restar 1'}
                           >
                             <Minus className="w-3 h-3" />
                           </button>
-                          <span className="font-extrabold px-2 text-center text-slate-900 text-xs">{item.quantity}</span>
+                          <input
+                            type="number"
+                            step={isWeightItem ? '0.001' : '1'}
+                            min="0.001"
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              if (!isNaN(val) && val > 0) {
+                                setCartQuantity(item.productId, val);
+                              }
+                            }}
+                            className="w-14 font-extrabold px-1 text-center text-slate-900 text-xs focus:bg-indigo-50 focus:outline-none"
+                            title="Editar cantidad directamente (ej: 0.25 para 250g)"
+                          />
                           <button
+                            type="button"
                             onClick={() => updateQuantity(item.productId, 1)}
                             className="p-1 text-slate-600 hover:bg-slate-100 transition-colors"
+                            title={isWeightItem ? 'Sumar 100g (0.1 kg)' : 'Sumar 1'}
                           >
                             <Plus className="w-3 h-3" />
                           </button>
                         </div>
 
+                        {isWeightItem ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const prod = appState.products.find(p => p.id === item.productId);
+                              if (prod) openWeightModal(prod, true, item.quantity);
+                            }}
+                            className="p-1 px-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[10px] font-black flex items-center space-x-0.5 transition-colors"
+                            title="Abrir calculadora de balanza, gramos y dinero"
+                          >
+                            <Scale className="w-3 h-3" />
+                            <span>{item.unit || 'kg'}</span>
+                          </button>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400 uppercase px-1">
+                            {item.unit || 'un'}
+                          </span>
+                        )}
+
                         <span className="font-black text-indigo-700 min-w-[64px] text-right text-xs">
-                          ${item.subtotal.toLocaleString('es-AR')}
+                          ${item.subtotal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
 
                         <button
+                          type="button"
                           onClick={() => removeFromCart(item.productId)}
                           className="text-slate-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
                           title="Eliminar del carrito"
@@ -1126,16 +1413,16 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
 
               <button
                 type="button"
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || isSubmitting}
                 onClick={handleCompleteSale}
                 className={`w-full py-3.5 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg transition-all flex items-center justify-center space-x-2 ${
-                  cart.length > 0
+                  cart.length > 0 && !isSubmitting
                     ? 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-emerald-600/30 active:scale-[0.99]'
                     : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                 }`}
               >
-                <CheckCircle className="w-5 h-5" />
-                <span>FINALIZAR VENTA Y EMITIR COMPROBANTE</span>
+                <CheckCircle className={`w-5 h-5 ${isSubmitting ? 'animate-spin' : ''}`} />
+                <span>{isSubmitting ? 'PROCESANDO VENTA...' : 'FINALIZAR VENTA Y EMITIR COMPROBANTE'}</span>
               </button>
             </div>
           </div>
@@ -1203,12 +1490,28 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
               </div>
               <div className="flex justify-between text-slate-600">
                 <span>Medio de Pago:</span>
-                <span className="font-semibold capitalize text-slate-900">
-                  {lastCompletedSale.paymentMethod === 'card' ? `Tarjeta (${lastCompletedSale.cardBankName || 'Crédito/Débito'})` : lastCompletedSale.paymentMethod === 'cash' ? 'Efectivo' : lastCompletedSale.paymentMethod}
+                <span className="font-bold text-slate-900">
+                  {lastCompletedSale.paymentMethod === 'card'
+                    ? `Tarjeta (${lastCompletedSale.cardBankName || 'Crédito/Débito'})`
+                    : lastCompletedSale.paymentMethod === 'cash'
+                    ? 'Efectivo'
+                    : lastCompletedSale.paymentMethod === 'current_account'
+                    ? 'Cuenta Corriente (A Crédito)'
+                    : lastCompletedSale.paymentMethod === 'transfer'
+                    ? 'Transferencia Bancaria'
+                    : lastCompletedSale.paymentMethod === 'cheque'
+                    ? 'Cheque'
+                    : 'Cobro Mixto'}
                 </span>
               </div>
+              {lastCompletedSale.paymentMethod === 'current_account' && (
+                <div className="bg-amber-100 text-amber-900 font-bold p-2.5 rounded-xl border border-amber-300 text-xs flex items-center justify-between">
+                  <span>Saldo cargado a Cta Cte:</span>
+                  <span className="text-red-700 font-black text-sm">+${lastCompletedSale.totalAmount.toLocaleString('es-AR')}</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-200">
-                <span className="font-bold text-slate-800">Total Cobrado:</span>
+                <span className="font-bold text-slate-800">Total Venta:</span>
                 <span className="font-black text-emerald-600 text-base">${lastCompletedSale.totalAmount.toLocaleString('es-AR')}</span>
               </div>
             </div>
@@ -1271,6 +1574,341 @@ export const POSView: React.FC<POSViewProps> = ({ appState, onOpenCardRates }) =
           </div>
         </div>
       )}
+
+      {/* Modal Balanza / Fraccionamiento / Venta por Peso */}
+      {isWeightModalOpen && weightModalProduct && (() => {
+        const calcs = getWeightCalculations();
+        const pricePerUnit = weightModalProduct.salePrice || 0;
+
+        return (
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsWeightModalOpen(false);
+              }
+            }}
+          >
+            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full border border-slate-100 overflow-hidden transform transition-all">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-800 p-5 text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-inner">
+                      <Scale className="w-5 h-5 text-indigo-200" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-200 block">
+                        Balanza & Fraccionamiento
+                      </span>
+                      <h3 className="text-lg font-black tracking-tight leading-tight">
+                        {weightModalProduct.name}
+                      </h3>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsWeightModalOpen(false)}
+                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between text-xs bg-black/20 rounded-xl px-3 py-2 border border-white/10">
+                  <span className="text-indigo-200 font-medium">Precio de Lista:</span>
+                  <span className="font-black text-white text-sm">
+                    ${pricePerUnit.toLocaleString('es-AR')} / {weightModalProduct.unit || 'kg'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Mode Tabs */}
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWeightMode('grams');
+                      setTimeout(() => weightInputRef.current?.select(), 50);
+                    }}
+                    className={`py-2 px-2 rounded-xl text-xs font-black transition-all flex items-center justify-center space-x-1 ${
+                      weightMode === 'grams'
+                        ? 'bg-white text-indigo-700 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>⚖️ En Gramos</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWeightMode('money');
+                      setTimeout(() => weightInputRef.current?.select(), 50);
+                    }}
+                    className={`py-2 px-2 rounded-xl text-xs font-black transition-all flex items-center justify-center space-x-1 ${
+                      weightMode === 'money'
+                        ? 'bg-white text-indigo-700 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>💵 Por Dinero ($)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWeightMode('kilos');
+                      setTimeout(() => weightInputRef.current?.select(), 50);
+                    }}
+                    className={`py-2 px-2 rounded-xl text-xs font-black transition-all flex items-center justify-center space-x-1 ${
+                      weightMode === 'kilos'
+                        ? 'bg-white text-indigo-700 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>📦 En Kilos</span>
+                  </button>
+                </div>
+
+                {/* Input Area */}
+                <div>
+                  {weightMode === 'grams' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                          Cantidad en Gramos (gr):
+                        </label>
+                        <div className="relative">
+                          <input
+                            ref={weightInputRef}
+                            type="number"
+                            step="1"
+                            min="1"
+                            value={weightGramsInput}
+                            onChange={(e) => setWeightGramsInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleConfirmWeight();
+                              } else if (e.key === 'Escape') {
+                                setIsWeightModalOpen(false);
+                              }
+                            }}
+                            className="w-full text-2xl font-black text-slate-900 bg-slate-50 border-2 border-indigo-200 focus:border-indigo-600 focus:bg-white rounded-2xl px-4 py-3 pr-12 focus:outline-none transition-all shadow-inner"
+                            placeholder="Ej: 250"
+                            autoFocus
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-slate-400">
+                            gr
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Quick Gram Preset Chips */}
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                          Atajos Rápidos:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { label: '100g', g: 100 },
+                            { label: '150g', g: 150 },
+                            { label: '200g', g: 200 },
+                            { label: '250g (1/4 kg)', g: 250 },
+                            { label: '500g (1/2 kg)', g: 500 },
+                            { label: '750g (3/4 kg)', g: 750 },
+                            { label: '1000g (1 kg)', g: 1000 },
+                            { label: '1500g', g: 1500 }
+                          ].map(chip => (
+                            <button
+                              key={chip.g}
+                              type="button"
+                              onClick={() => {
+                                setWeightGramsInput(chip.g.toString());
+                                weightInputRef.current?.focus();
+                              }}
+                              className={`px-2.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all ${
+                                weightGramsInput === chip.g.toString()
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                  : 'bg-slate-50 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 border-slate-200'
+                              }`}
+                            >
+                              {chip.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {weightMode === 'money' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                          Monto en Pesos que pide el cliente ($):
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-black text-slate-400">
+                            $
+                          </span>
+                          <input
+                            ref={weightInputRef}
+                            type="number"
+                            step="10"
+                            min="1"
+                            value={weightMoneyInput}
+                            onChange={(e) => setWeightMoneyInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleConfirmWeight();
+                              } else if (e.key === 'Escape') {
+                                setIsWeightModalOpen(false);
+                              }
+                            }}
+                            className="w-full text-2xl font-black text-slate-900 bg-slate-50 border-2 border-indigo-200 focus:border-indigo-600 focus:bg-white rounded-2xl pl-9 pr-4 py-3 focus:outline-none transition-all shadow-inner"
+                            placeholder="Ej: 2000"
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+
+                      {/* Quick Money Preset Chips */}
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                          Montos Frecuentes:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[500, 1000, 1500, 2000, 2500, 3000, 5000].map(m => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => {
+                                setWeightMoneyInput(m.toString());
+                                weightInputRef.current?.focus();
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold border transition-all ${
+                                weightMoneyInput === m.toString()
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                  : 'bg-slate-50 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 border-slate-200'
+                              }`}
+                            >
+                              ${m.toLocaleString('es-AR')}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {weightMode === 'kilos' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                          Peso en Kilos (ej. de balanza digital):
+                        </label>
+                        <div className="relative">
+                          <input
+                            ref={weightInputRef}
+                            type="number"
+                            step="0.001"
+                            min="0.001"
+                            value={weightKilosInput}
+                            onChange={(e) => setWeightKilosInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleConfirmWeight();
+                              } else if (e.key === 'Escape') {
+                                setIsWeightModalOpen(false);
+                              }
+                            }}
+                            className="w-full text-2xl font-black text-slate-900 bg-slate-50 border-2 border-indigo-200 focus:border-indigo-600 focus:bg-white rounded-2xl px-4 py-3 pr-12 focus:outline-none transition-all shadow-inner"
+                            placeholder="Ej: 1.350"
+                            autoFocus
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-slate-400">
+                            kg
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Quick Kilo Preset Chips */}
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                          Kilos Frecuentes:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { label: '0.25 kg', k: 0.25 },
+                            { label: '0.50 kg', k: 0.5 },
+                            { label: '0.75 kg', k: 0.75 },
+                            { label: '1.00 kg', k: 1 },
+                            { label: '1.50 kg', k: 1.5 },
+                            { label: '2.00 kg', k: 2 },
+                            { label: '3.00 kg', k: 3 }
+                          ].map(chip => (
+                            <button
+                              key={chip.k}
+                              type="button"
+                              onClick={() => {
+                                setWeightKilosInput(chip.k.toString());
+                                weightInputRef.current?.focus();
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold border transition-all ${
+                                weightKilosInput === chip.k.toString()
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                  : 'bg-slate-50 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 border-slate-200'
+                              }`}
+                            >
+                              {chip.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Calculation Result Summary Card */}
+                <div className="bg-gradient-to-br from-indigo-50 via-slate-50 to-purple-50 p-4 rounded-2xl border border-indigo-100 space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-600">
+                    <span className="font-semibold">Peso equivalente:</span>
+                    <span className="font-extrabold text-slate-900">
+                      {calcs.grams.toLocaleString('es-AR')} gr ({calcs.kilos} kg)
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-indigo-100/60">
+                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Total a Cobrar:</span>
+                    <span className="text-xl font-black text-indigo-600 tracking-tight">
+                      ${calcs.subtotal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="pt-2 flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsWeightModalOpen(false)}
+                    className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition-colors"
+                  >
+                    Cancelar (ESC)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmWeight}
+                    className="flex-[2] py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/30 transition-all active:scale-[0.99]"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    <span>{isEditingCartItem ? 'Actualizar en Carrito (ENTER)' : 'Llevar al Carrito (ENTER)'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

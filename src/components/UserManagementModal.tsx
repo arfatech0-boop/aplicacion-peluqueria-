@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AppState, SystemUser, UserRole } from '../types';
 import { DataService } from '../services/dataService';
 import { Users, Plus, X, Pencil, Trash2, Key, Shield, UserCheck, UserX, CheckCircle, AlertCircle } from 'lucide-react';
+import { Pagination } from './Pagination';
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -20,6 +21,14 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  const [userPage, setUserPage] = useState(1);
+  const [userPageSize, setUserPageSize] = useState(5);
+
+  const paginatedUsers = appState.users.slice(
+    (userPage - 1) * userPageSize,
+    userPage * userPageSize
+  );
 
   if (!isOpen) return null;
 
@@ -148,94 +157,106 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
           </button>
         </div>
 
-        <div className="max-h-72 overflow-y-auto border rounded-xl">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px]">
-              <tr>
-                <th className="p-2.5">Nombre</th>
-                <th className="p-2.5">Usuario</th>
-                <th className="p-2.5">Rol</th>
-                <th className="p-2.5">Estado / Prueba 7D</th>
-                <th className="p-2.5 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {appState.users.map(user => {
-                const isTrial = user.isDemo && user.trialExpiresAt;
-                const trialExpired = isTrial && new Date().getTime() > new Date(user.trialExpiresAt!).getTime();
-                const daysLeft = isTrial && !trialExpired
-                  ? Math.max(0, Math.ceil((new Date(user.trialExpiresAt!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
-                  : 0;
+        <div className="border rounded-xl overflow-hidden">
+          <div className="max-h-72 overflow-y-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px]">
+                <tr>
+                  <th className="p-2.5">Nombre</th>
+                  <th className="p-2.5">Usuario</th>
+                  <th className="p-2.5">Rol</th>
+                  <th className="p-2.5">Estado / Prueba 7D</th>
+                  <th className="p-2.5 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paginatedUsers.map(user => {
+                  const isTrial = user.isDemo && user.trialExpiresAt;
+                  const trialExpired = isTrial && new Date().getTime() > new Date(user.trialExpiresAt!).getTime();
+                  const daysLeft = isTrial && !trialExpired
+                    ? Math.max(0, Math.ceil((new Date(user.trialExpiresAt!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+                    : 0;
 
-                return (
-                  <tr key={user.id} className="hover:bg-slate-50">
-                    <td className="p-2.5 font-bold text-slate-900">
-                      {user.name}
-                      {user.id === currentUser?.id && (
-                        <span className="ml-1.5 px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[9px] font-extrabold">
-                          (Tú)
+                  return (
+                    <tr key={user.id} className="hover:bg-slate-50">
+                      <td className="p-2.5 font-bold text-slate-900">
+                        {user.name}
+                        {user.id === currentUser?.id && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[9px] font-extrabold">
+                            (Tú)
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-2.5 font-mono text-slate-600">{user.username}</td>
+                      <td className="p-2.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                          user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {user.role === 'admin' ? 'Administrador' : 'Cajero'}
                         </span>
-                      )}
-                    </td>
-                    <td className="p-2.5 font-mono text-slate-600">{user.username}</td>
-                    <td className="p-2.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                        user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-700'
-                      }`}>
-                        {user.role === 'admin' ? 'Administrador' : 'Cajero'}
-                      </span>
-                    </td>
-                    <td className="p-2.5">
-                      {!user.active ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-800">
-                          🔴 Desactivado
-                        </span>
-                      ) : trialExpired ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-800 animate-pulse">
-                          🔴 Prueba Vencida (7 Días)
-                        </span>
-                      ) : isTrial ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
-                          ⏳ Demo (Quedan {daysLeft} días)
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
-                          🟢 Activo Permanente
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-2.5 text-right space-x-1">
-                      {(isTrial || trialExpired) && (
+                      </td>
+                      <td className="p-2.5">
+                        {!user.active ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-800">
+                            🔴 Desactivado
+                          </span>
+                        ) : trialExpired ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-800 animate-pulse">
+                            🔴 Prueba Vencida (7 Días)
+                          </span>
+                        ) : isTrial ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                            ⏳ Demo (Quedan {daysLeft} días)
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                            🟢 Activo Permanente
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-2.5 text-right space-x-1">
+                        {(isTrial || trialExpired) && (
+                          <button
+                            onClick={() => handleApprovePermanent(user)}
+                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-[10px] shadow"
+                            title="Aprobar y convertir en cuenta activa definitiva"
+                          >
+                            ✅ Activar Plan
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleApprovePermanent(user)}
-                          className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-[10px] shadow"
-                          title="Aprobar y convertir en cuenta activa definitiva"
+                          onClick={() => handleOpenEdit(user)}
+                          className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
+                          title="Editar datos / contraseña"
                         >
-                          ✅ Activar Plan
+                          <Pencil className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                      <button
-                        onClick={() => handleOpenEdit(user)}
-                        className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
-                        title="Editar datos / contraseña"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      {user.id !== currentUser?.id && (
-                        <button
-                          onClick={() => handleDeleteUser(user)}
-                          className="p-1 text-red-600 hover:bg-red-50 rounded"
-                          title="Eliminar usuario"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                        {user.id !== currentUser?.id && (
+                          <button
+                            onClick={() => handleDeleteUser(user)}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded"
+                            title="Eliminar usuario"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination
+            currentPage={userPage}
+            totalItems={appState.users.length}
+            pageSize={userPageSize}
+            onPageChange={setUserPage}
+            onPageSizeChange={setUserPageSize}
+            pageSizeOptions={[5, 10, 20]}
+            itemLabel="usuarios"
+          />
         </div>
 
         {/* Modal Form Create/Edit */}

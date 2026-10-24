@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { AppState, StoreAccount, SystemUser } from '../types';
 import { DataService } from '../services/dataService';
+import { getCatalogForRubro } from '../data/rubroCatalogs';
 import { Building2, Plus, X, Pencil, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Pagination } from './Pagination';
 
 interface ClientManagementModalProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ export const ClientManagementModal: React.FC<ClientManagementModalProps> = ({
   const [newAdminUsername, setNewAdminUsername] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('123456');
   const [newStoreBusinessType, setNewStoreBusinessType] = useState('Comercio General / Multirrubro');
+  const [loadTemplateCatalog, setLoadTemplateCatalog] = useState(true);
   const [isDemoAccount, setIsDemoAccount] = useState(true);
 
   const RUBROS = [
@@ -49,6 +52,7 @@ export const ClientManagementModal: React.FC<ClientManagementModalProps> = ({
   const handleOpenCreate = () => {
     setNewStoreName('');
     setNewStoreBusinessType('Comercio General / Multirrubro');
+    setLoadTemplateCatalog(true);
     setNewAdminUsername('');
     setNewAdminPassword('123456');
     setIsDemoAccount(true);
@@ -115,6 +119,11 @@ export const ClientManagementModal: React.FC<ClientManagementModalProps> = ({
         defaultRespInscriptoInvoiceType: 'FACTURA_A',
         afipPointOfSale: '0001'
       });
+
+      if (loadTemplateCatalog) {
+        const catalog = getCatalogForRubro(newStore.businessType);
+        await DataService.replaceProducts(catalog, newStoreId);
+      }
       
       setSuccessMsg(`¡Comercio "${newStoreName}" y su administrador creados exitosamente!`);
       setIsFormOpen(false);
@@ -124,6 +133,13 @@ export const ClientManagementModal: React.FC<ClientManagementModalProps> = ({
   };
 
   const stores = appState.stores || [];
+  const [storePage, setStorePage] = useState(1);
+  const [storePageSize, setStorePageSize] = useState(5);
+
+  const paginatedStores = stores.slice(
+    (storePage - 1) * storePageSize,
+    storePage * storePageSize
+  );
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -167,44 +183,56 @@ export const ClientManagementModal: React.FC<ClientManagementModalProps> = ({
           </button>
         </div>
 
-        <div className="max-h-72 overflow-y-auto border rounded-xl">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px]">
-              <tr>
-                <th className="p-2.5">Comercio</th>
-                <th className="p-2.5">CUIT</th>
-                <th className="p-2.5">Estado</th>
-                <th className="p-2.5">Fecha Creación</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {stores.map(store => (
-                <tr 
-                  key={store.id} 
-                  className="hover:bg-indigo-50 cursor-pointer transition-colors"
-                  onClick={() => setSelectedStore(store)}
-                  title="Haz clic para ver detalles y contraseñas"
-                >
-                  <td className="p-2.5 font-bold text-slate-900 flex items-center space-x-2">
-                    <span>{store.name}</span>
-                  </td>
-                  <td className="p-2.5 font-mono text-slate-600">{store.cuit}</td>
-                  <td className="p-2.5">
-                    {store.active ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
-                        🟢 Activo
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-800">
-                        🔴 Suspendido
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-2.5 text-slate-500">{new Date(store.createdAt).toLocaleDateString('es-AR')}</td>
+        <div className="border rounded-xl overflow-hidden">
+          <div className="max-h-72 overflow-y-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px]">
+                <tr>
+                  <th className="p-2.5">Comercio</th>
+                  <th className="p-2.5">CUIT</th>
+                  <th className="p-2.5">Estado</th>
+                  <th className="p-2.5">Fecha Creación</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paginatedStores.map(store => (
+                  <tr 
+                    key={store.id} 
+                    className="hover:bg-indigo-50 cursor-pointer transition-colors"
+                    onClick={() => setSelectedStore(store)}
+                    title="Haz clic para ver detalles y contraseñas"
+                  >
+                    <td className="p-2.5 font-bold text-slate-900 flex items-center space-x-2">
+                      <span>{store.name}</span>
+                    </td>
+                    <td className="p-2.5 font-mono text-slate-600">{store.cuit}</td>
+                    <td className="p-2.5">
+                      {store.active ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                          🟢 Activo
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-800">
+                          🔴 Suspendido
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-2.5 text-slate-500">{new Date(store.createdAt).toLocaleDateString('es-AR')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination
+            currentPage={storePage}
+            totalItems={stores.length}
+            pageSize={storePageSize}
+            onPageChange={setStorePage}
+            onPageSizeChange={setStorePageSize}
+            pageSizeOptions={[5, 10, 20]}
+            itemLabel="comercios"
+          />
         </div>
 
         {/* Modal Form Create Store */}
@@ -247,6 +275,22 @@ export const ClientManagementModal: React.FC<ClientManagementModalProps> = ({
                       <option key={rubro} value={rubro}>{rubro}</option>
                     ))}
                   </select>
+                </div>
+                <div className="bg-indigo-50/70 border border-indigo-100 rounded-lg p-2.5">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={loadTemplateCatalog}
+                      onChange={e => setLoadTemplateCatalog(e.target.checked)}
+                      className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                    />
+                    <span className="text-xs font-bold text-indigo-950">
+                      Cargar plantilla con catálogo inicial de {newStoreBusinessType.split('/')[0]}
+                    </span>
+                  </label>
+                  <p className="text-[10px] text-slate-500 pl-6 mt-0.5">
+                    El comercio tendrá listos productos de ejemplo característicos de este rubro al crearse.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">Usuario del Administrador</label>

@@ -7,6 +7,7 @@ export type BusinessRubro =
   | 'Carnicería / Fiambrería & Granja'
   | 'Verdulería / Frutería'
   | 'Kiosco / Drugstore'
+  | 'Kiosco / Minimarket'
   | 'Ferretería / Corralón'
   | 'Indumentaria / Calzado'
   | 'Electrónica / Computación'
@@ -31,6 +32,9 @@ export interface Product {
   color?: string; // Color / Variante
   brand?: string; // Marca / Fabricante
   description?: string;
+  price?: number;
+  margin?: number;
+  storeId?: string;
   updatedAt: string;
 }
 
@@ -42,19 +46,23 @@ export interface Supplier {
   email: string;
   contact: string;
   notes?: string;
+  storeId?: string;
 }
 
 export interface GlobalPriceIncreaseLog {
   id: string;
   supplierId: string;
   supplierName: string;
+  category?: string;
   categoryFilter?: string;
+  appliedTo?: string;
   percentage: number;
-  applyToCost: boolean;
-  applyToSale: boolean;
-  recalculateMargin: boolean;
+  applyToCost?: boolean;
+  applyToSale?: boolean;
+  recalculateMargin?: boolean;
   affectedProductsCount: number;
   date: string;
+  storeId?: string;
 }
 
 export interface Customer {
@@ -68,13 +76,18 @@ export interface Customer {
   currentBalance: number; // Positive = owes money, Negative = credit in favor
   notes?: string;
   updatedAt: string;
+  lastPaymentDate?: string;
+  lastPaymentAmount?: number;
+  nextPaymentPromiseDate?: string;
+  storeId?: string;
 }
 
-export type CustomerTransactionType = 'sale' | 'payment' | 'adjustment' | 'withdrawal_billing';
+export type CustomerTransactionType = 'sale' | 'payment' | 'adjustment' | 'withdrawal_billing' | 'charge';
 
 export interface CustomerTransaction {
   id: string;
   customerId: string;
+  customerName?: string;
   type: CustomerTransactionType;
   amount: number;
   balanceAfter: number;
@@ -83,9 +96,16 @@ export interface CustomerTransaction {
   saleId?: string;
   withdrawalId?: string;
   receiptNumber?: string;
+  reference?: string;
+  paymentMethod?: string;
+  isPartial?: boolean;
+  remainingBalance?: number;
+  nextPromiseDate?: string;
+  storeId?: string;
+  paidWithdrawalIds?: string[];
 }
 
-export type WithdrawalStatus = 'pending' | 'billed' | 'returned';
+export type WithdrawalStatus = 'pending' | 'billed' | 'returned' | 'cancelled' | 'paid' | 'partial';
 
 export interface WithdrawalItem {
   productId: string;
@@ -107,6 +127,11 @@ export interface CustomerWithdrawal {
   status: WithdrawalStatus;
   notes?: string;
   authorizedBy?: string;
+  storeId?: string;
+  saleId?: string;
+  invoiceNumber?: string;
+  paidAmount?: number;
+  remainingAmount?: number;
 }
 
 export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'cheque' | 'current_account' | 'mixed';
@@ -121,6 +146,7 @@ export interface SaleItem {
   unitPrice: number;
   costPrice: number;
   subtotal: number;
+  unit?: ProductUnit;
 }
 
 export interface Sale {
@@ -177,6 +203,7 @@ export interface CashMovement {
 
 export interface CashRegister {
   id: string;
+  storeId?: string;
   openDate: string;
   closeDate?: string;
   initialAmount: number;
@@ -237,6 +264,7 @@ export interface StoreInfo {
   afipLastConnectionStatus?: 'connected' | 'error' | 'not_configured';
   afipLastConnectionCheck?: string;
   cardInterestPlans?: CardInterestPlan[];
+  storeId?: string;
 }
 
 export interface QuotationItem {
@@ -269,9 +297,9 @@ export interface StoreAccount {
   name: string;
   cuit: string;
   businessType: BusinessRubro;
-  address: string;
-  phone: string;
-  email: string;
+  address?: string;
+  phone?: string;
+  email?: string;
   active: boolean;
   isDemo?: boolean;
   trialExpiresAt?: string;
@@ -287,6 +315,7 @@ export interface SystemUser {
   username: string;
   password: string;
   name: string;
+  email?: string;
   role: UserRole;
   active: boolean;
   isDemo?: boolean;

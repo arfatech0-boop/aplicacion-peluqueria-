@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { AppState, Supplier, GlobalPriceIncreaseLog } from '../types';
 import { DataService } from '../services/dataService';
+import { Pagination } from './Pagination';
 
 interface SuppliersViewProps {
   appState: AppState;
@@ -40,6 +41,23 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({ appState }) => {
   const [editingSupplier, setEditingSupplier] = useState<Partial<Supplier> | null>(null);
 
   const categories = Array.from(new Set(appState.products.map(p => p.category)));
+
+  // Pagination states
+  const [suppliersPage, setSuppliersPage] = useState(1);
+  const [suppliersPageSize, setSuppliersPageSize] = useState(12);
+
+  const [logsPage, setLogsPage] = useState(1);
+  const [logsPageSize, setLogsPageSize] = useState(10);
+
+  const paginatedSuppliers = appState.suppliers.slice(
+    (suppliersPage - 1) * suppliersPageSize,
+    suppliersPage * suppliersPageSize
+  );
+
+  const paginatedLogs = appState.priceIncreaseLogs.slice(
+    (logsPage - 1) * logsPageSize,
+    logsPage * logsPageSize
+  );
 
   // Affected products preview calculation
   const getAffectedProductsPreview = () => {
@@ -344,57 +362,73 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({ appState }) => {
 
       {/* Suppliers Directory List */}
       {activeSubTab === 'suppliers_list' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {appState.suppliers.map(supplier => {
-            const productCount = appState.products.filter(p => p.supplierId === supplier.id).length;
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {paginatedSuppliers.map(supplier => {
+              const productCount = appState.products.filter(p => p.supplierId === supplier.id).length;
 
-            return (
-              <div key={supplier.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between space-y-3">
-                <div>
-                  <div className="flex items-start justify-between">
-                    <h3 className="font-bold text-slate-900 text-base">{supplier.name}</h3>
+              return (
+                <div key={supplier.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between space-y-3">
+                  <div>
+                    <div className="flex items-start justify-between">
+                      <h3 className="font-bold text-slate-900 text-base">{supplier.name}</h3>
+                      <button
+                        onClick={() => {
+                          setEditingSupplier(supplier);
+                          setIsSupplierModalOpen(true);
+                        }}
+                        className="p-1 rounded text-slate-400 hover:text-indigo-600"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <span className="text-xs text-slate-500 font-mono">CUIT: {supplier.cuit || 'Sin registrar'}</span>
+
+                    <div className="mt-3 space-y-1.5 text-xs text-slate-600">
+                      <div className="flex items-center space-x-2">
+                        <Phone className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{supplier.phone || '-'}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Mail className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{supplier.email || '-'}</span>
+                      </div>
+                      {supplier.contact && (
+                        <p className="text-[11px] text-slate-500 italic pt-1">Contacto: {supplier.contact}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-700">{productCount} productos provistos</span>
                     <button
                       onClick={() => {
-                        setEditingSupplier(supplier);
-                        setIsSupplierModalOpen(true);
+                        setSelectedSupplierId(supplier.id);
+                        setActiveSubTab('increase_tool');
                       }}
-                      className="p-1 rounded text-slate-400 hover:text-indigo-600"
+                      className="text-indigo-600 font-bold hover:underline"
                     >
-                      <Edit className="w-4 h-4" />
+                      Aumentar Precios %
                     </button>
                   </div>
-                  <span className="text-xs text-slate-500 font-mono">CUIT: {supplier.cuit || 'Sin registrar'}</span>
-
-                  <div className="mt-3 space-y-1.5 text-xs text-slate-600">
-                    <div className="flex items-center space-x-2">
-                      <Phone className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{supplier.phone || '-'}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Mail className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{supplier.email || '-'}</span>
-                    </div>
-                    {supplier.contact && (
-                      <p className="text-[11px] text-slate-500 italic pt-1">Contacto: {supplier.contact}</p>
-                    )}
-                  </div>
                 </div>
+              );
+            })}
+          </div>
 
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-700">{productCount} productos provistos</span>
-                  <button
-                    onClick={() => {
-                      setSelectedSupplierId(supplier.id);
-                      setActiveSubTab('increase_tool');
-                    }}
-                    className="text-indigo-600 font-bold hover:underline"
-                  >
-                    Aumentar Precios %
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {appState.suppliers.length > 0 && (
+            <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
+              <Pagination
+                currentPage={suppliersPage}
+                totalItems={appState.suppliers.length}
+                pageSize={suppliersPageSize}
+                onPageChange={setSuppliersPage}
+                onPageSizeChange={setSuppliersPageSize}
+                pageSizeOptions={[6, 12, 24, 48]}
+                itemLabel="proveedores"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -412,23 +446,41 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({ appState }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {appState.priceIncreaseLogs.map(log => (
-                <tr key={log.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-slate-500">{new Date(log.date).toLocaleString('es-AR')}</td>
-                  <td className="px-4 py-3 font-bold text-slate-900">{log.supplierName}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">
-                      +{log.percentage}%
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center font-bold text-slate-800">{log.affectedProductsCount}</td>
-                  <td className="px-4 py-3 text-slate-600">
-                    Costo: {log.applyToCost ? 'Sí' : 'No'} | Venta: {log.applyToSale ? 'Sí' : 'No'}
+              {paginatedLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-8 text-slate-400">
+                    No hay registros históricos de aumentos de precios.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                paginatedLogs.map(log => (
+                  <tr key={log.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 text-slate-500">{new Date(log.date).toLocaleString('es-AR')}</td>
+                    <td className="px-4 py-3 font-bold text-slate-900">{log.supplierName}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">
+                        +{log.percentage}%
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center font-bold text-slate-800">{log.affectedProductsCount}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      Costo: {log.applyToCost ? 'Sí' : 'No'} | Venta: {log.applyToSale ? 'Sí' : 'No'}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
+
+          <Pagination
+            currentPage={logsPage}
+            totalItems={appState.priceIncreaseLogs.length}
+            pageSize={logsPageSize}
+            onPageChange={setLogsPage}
+            onPageSizeChange={setLogsPageSize}
+            pageSizeOptions={[5, 10, 20, 50]}
+            itemLabel="registros"
+          />
         </div>
       )}
 

@@ -18,6 +18,7 @@ import { AppState, CustomerWithdrawal, WithdrawalItem, Customer } from '../types
 import { DataService } from '../services/dataService';
 import { exportWithdrawalsExcel } from '../utils/excelExporter';
 import { generateWithdrawalReceiptPDF, generateDebtDetailPDF } from '../utils/pdfGenerator';
+import { Pagination } from './Pagination';
 
 interface WithdrawalsViewProps {
   appState: AppState;
@@ -25,7 +26,7 @@ interface WithdrawalsViewProps {
 
 export const WithdrawalsView: React.FC<WithdrawalsViewProps> = ({ appState }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'pending' | 'billed' | 'returned'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'pending' | 'partial' | 'paid' | 'billed' | 'returned'>('ALL');
 
   // Bulk Billing Selection State
   const [selectedWithdrawalIds, setSelectedWithdrawalIds] = useState<string[]>([]);
@@ -48,6 +49,20 @@ export const WithdrawalsView: React.FC<WithdrawalsViewProps> = ({ appState }) =>
       w.items.some(i => i.productName.toLowerCase().includes(q));
     return matchesStatus && matchesSearch;
   });
+
+  // Pagination states
+  const [withdrawalPage, setWithdrawalPage] = useState(1);
+  const [withdrawalPageSize, setWithdrawalPageSize] = useState(10);
+
+  // Reset page when filters change
+  React.useEffect(() => {
+    setWithdrawalPage(1);
+  }, [searchQuery, statusFilter]);
+
+  const paginatedWithdrawals = filteredWithdrawals.slice(
+    (withdrawalPage - 1) * withdrawalPageSize,
+    withdrawalPage * withdrawalPageSize
+  );
 
   const pendingFilteredWithdrawals = filteredWithdrawals.filter(w => w.status === 'pending');
 
@@ -203,17 +218,19 @@ export const WithdrawalsView: React.FC<WithdrawalsViewProps> = ({ appState }) =>
           />
         </div>
 
-        <div className="flex items-center space-x-2 text-xs">
-          <span className="text-slate-500 font-semibold">Estado:</span>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-slate-500 font-semibold mr-1">Estado:</span>
           {[
             { id: 'ALL', label: 'Todos' },
-            { id: 'pending', label: 'Pendiente Facturar' },
+            { id: 'pending', label: 'Pendientes' },
+            { id: 'partial', label: 'Pago Parcial' },
+            { id: 'paid', label: 'Pagados' },
             { id: 'billed', label: 'Facturados' }
           ].map(st => (
             <button
               key={st.id}
               onClick={() => setStatusFilter(st.id as any)}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
                 statusFilter === st.id ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
@@ -257,9 +274,13 @@ export const WithdrawalsView: React.FC<WithdrawalsViewProps> = ({ appState }) =>
 
       {/* Withdrawals List */}
       <div className="space-y-4">
-        {filteredWithdrawals.map(withdrawal => {
+        {paginatedWithdrawals.map(withdrawal => {
           const isSelected = selectedWithdrawalIds.includes(withdrawal.id);
           const isPending = withdrawal.status === 'pending';
+          const isPartial = withdrawal.status === 'partial';
+          const isPaid = withdrawal.status === 'paid';
+          const isBilled = withdrawal.status === 'billed';
+          const canBeBilled = isPending || isPartial;
 
           return (
             <div
@@ -270,7 +291,7 @@ export const WithdrawalsView: React.FC<WithdrawalsViewProps> = ({ appState }) =>
             >
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b pb-3 gap-2">
                 <div className="flex items-center space-x-3">
-                  {isPending && (
+                  {canBeBilled && (
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -282,9 +303,17 @@ export const WithdrawalsView: React.FC<WithdrawalsViewProps> = ({ appState }) =>
                     <div className="flex items-center space-x-2">
                       <span className="font-extrabold text-slate-900 text-base">{withdrawal.withdrawalNumber}</span>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                        isPending ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-emerald-100 text-emerald-800'
+                        isPaid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                        isPartial ? 'bg-orange-100 text-orange-800 border border-orange-300' :
+                        isPending ? 'bg-amber-100 text-amber-800 border border-amber-300' :
+                        isBilled ? 'bg-blue-100 text-blue-800 border border-blue-300' :
+                        'bg-slate-100 text-slate-700 border border-slate-300'
                       }`}>
-                        {isPending ? 'Pendiente Facturar' : 'Facturado'}
+                        {isPaid ? 'Pagado Totalmente' :
+                         isPartial ? 'Pago Parcial' :
+                         isPending ? 'Pendiente' :
+                         isBilled ? 'Facturado' :
+                         withdrawal.status}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">
@@ -294,7 +323,7 @@ export const WithdrawalsView: React.FC<WithdrawalsViewProps> = ({ appState }) =>
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  {isPending && (
+                  {canBeBilled && (
                     <button
                       onClick={async () => {
                         if (window.confirm(`¿Marcar remito ${withdrawal.withdrawalNumber} como facturado?`)) {
@@ -373,15 +402,46 @@ export const WithdrawalsView: React.FC<WithdrawalsViewProps> = ({ appState }) =>
               </table>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-2 border-t text-xs text-slate-600">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-2 border-t text-xs text-slate-600 gap-2">
               <span className="italic">{withdrawal.notes ? `Notas: ${withdrawal.notes}` : ''}</span>
-              <span className="font-extrabold text-slate-900 text-sm">
-                Total Estimado Retirado: ${withdrawal.totalAmount.toLocaleString('es-AR')}
-              </span>
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                <span className="text-slate-500 font-medium">
+                  Total Retirado: <strong className="text-slate-900">${withdrawal.totalAmount.toLocaleString('es-AR')}</strong>
+                </span>
+                {withdrawal.paidAmount !== undefined && withdrawal.paidAmount > 0 && (
+                  <span className="text-emerald-700 font-semibold">
+                    Pagado: <strong>${withdrawal.paidAmount.toLocaleString('es-AR')}</strong>
+                  </span>
+                )}
+                {withdrawal.remainingAmount !== undefined && withdrawal.remainingAmount > 0 && (
+                  <span className="text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                    Resta Abonar: <strong>${withdrawal.remainingAmount.toLocaleString('es-AR')}</strong>
+                  </span>
+                )}
+                {withdrawal.remainingAmount === 0 && (
+                  <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    ✓ Saldado Totalmente
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         );
       })}
+
+      {filteredWithdrawals.length > 0 && (
+        <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
+          <Pagination
+            currentPage={withdrawalPage}
+            totalItems={filteredWithdrawals.length}
+            pageSize={withdrawalPageSize}
+            onPageChange={setWithdrawalPage}
+            onPageSizeChange={setWithdrawalPageSize}
+            pageSizeOptions={[5, 10, 20, 50]}
+            itemLabel="remitos"
+          />
+        </div>
+      )}
       </div>
 
       {/* New Withdrawal Modal */}

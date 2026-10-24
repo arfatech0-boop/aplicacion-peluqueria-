@@ -5,8 +5,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://fviljkfepzpciqwyulpi.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_KEY || '';
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error('❌ Error: SUPABASE_URL and SUPABASE_KEY must be provided in .env');
+  process.exit(1);
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -91,8 +96,8 @@ async function seedData() {
   // 4. Products
   if (Array.isArray(appState.products) && appState.products.length) {
     console.log(`📌 Seeding ${appState.products.length} products...`);
-    // Clear old demo products first
-    await supabase.from('products').delete().neq('id', 'keep-none');
+    // SEGURIDAD: NO borrar productos ciegamente. Se utiliza upsert por ID.
+    // await supabase.from('products').delete().neq('id', 'keep-none');
 
     const products = appState.products.map((p: any) => ({
       id: p.id,

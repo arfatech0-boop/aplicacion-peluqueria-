@@ -64,6 +64,11 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Asegurar que la sesión de tienda esté sincronizada si ya había un usuario logueado
+    if (currentUser?.storeId) {
+      DataService.setCurrentSession(currentUser.storeId, currentUser.id);
+    }
+
     // Initialize data service & real-time SSE listener
     DataService.init();
 
@@ -272,7 +277,7 @@ export default function App() {
           )}
 
           {activeTab === 'stock' && (
-            <StockView appState={appState} />
+            <StockView appState={appState} currentUser={currentUser} />
           )}
 
           {activeTab === 'suppliers' && (
@@ -330,6 +335,7 @@ export default function App() {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         storeInfo={appState.storeInfo}
+        currentUser={currentUser}
       />
 
       {/* Card Interest & Surcharges Modal */}
