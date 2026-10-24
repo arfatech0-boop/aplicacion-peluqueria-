@@ -323,6 +323,7 @@ export interface SystemUser {
   trialExpiresAt?: string;
   createdAt: string;
   lastLogin?: string;
+  permissions?: string[];
 }
 
 export interface AppState {

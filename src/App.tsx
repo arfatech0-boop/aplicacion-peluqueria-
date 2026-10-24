@@ -82,7 +82,11 @@ export default function App() {
         if (updated) {
           if (!updated.active) {
             handleLogout();
-          } else if (updated.name !== activeUser.name || updated.role !== activeUser.role) {
+          } else if (
+            updated.name !== activeUser.name || 
+            updated.role !== activeUser.role || 
+            JSON.stringify(updated.permissions) !== JSON.stringify(activeUser.permissions)
+          ) {
             setCurrentUser(updated);
             localStorage.setItem('gc_current_user', JSON.stringify(updated));
           }
@@ -92,6 +96,22 @@ export default function App() {
 
     return () => unsubscribe();
   }, []);
+
+  // Guard activeTab based on user permissions
+  useEffect(() => {
+    if (!currentUser) return;
+    if (currentUser.role === 'admin' || currentUser.role === 'superadmin') return;
+
+    const allowed = Array.isArray(currentUser.permissions) && currentUser.permissions.length > 0
+      ? [...currentUser.permissions, 'guide']
+      : currentUser.role === 'manager'
+        ? ['dashboard', 'pos', 'stock', 'suppliers', 'customers', 'withdrawals', 'cheques', 'cash', 'search', 'reports', 'guide']
+        : ['pos', 'cash', 'guide'];
+
+    if (!allowed.includes(activeTab)) {
+      setActiveTab((allowed[0] as ActiveTab) || 'pos');
+    }
+  }, [currentUser, activeTab]);
 
   const handleLogin = (user: SystemUser, storeId: string) => {
     currentUserRef.current = user;
@@ -195,15 +215,15 @@ export default function App() {
               </button>
             )}
 
-            {/* User Management Button (Super Admin / Master only) */}
-            {(currentUser.role === 'superadmin' || currentUser.username === 'admin' || currentUser.username === 'facu123') && (
+            {/* User Management Button (Admin & Superadmin) */}
+            {(currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
               <button
                 onClick={() => setUsersModalOpen(true)}
-                className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors text-xs font-bold shadow-xs"
-                title="Gestión de Usuarios y Contraseñas"
+                className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors text-xs font-bold shadow-xs cursor-pointer"
+                title="Gestión Unificada de Usuarios y Permisos"
               >
                 <Users className="w-3.5 h-3.5 text-purple-600" />
-                <span>Usuarios</span>
+                <span>Usuarios & Permisos</span>
               </button>
             )}
 

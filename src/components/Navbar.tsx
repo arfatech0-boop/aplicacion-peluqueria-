@@ -99,6 +99,23 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'guide', label: 'Guía & Manual de Uso', icon: BookOpen },
   ];
 
+  const allowedTabs: string[] = React.useMemo(() => {
+    if (!currentUser) return ['pos', 'guide'];
+    if (currentUser.role === 'admin' || currentUser.role === 'superadmin') {
+      return ['dashboard', 'pos', 'stock', 'suppliers', 'customers', 'withdrawals', 'cheques', 'cash', 'search', 'reports', 'guide'];
+    }
+    if (Array.isArray(currentUser.permissions) && currentUser.permissions.length > 0) {
+      return [...currentUser.permissions, 'guide'];
+    }
+    if (currentUser.role === 'manager') {
+      return ['dashboard', 'pos', 'stock', 'suppliers', 'customers', 'withdrawals', 'cheques', 'cash', 'search', 'reports', 'guide'];
+    }
+    // Default cashier
+    return ['pos', 'cash', 'guide'];
+  }, [currentUser]);
+
+  const visibleNavItems = navItems.filter(item => allowedTabs.includes(item.id));
+
   return (
     <>
       {/* Mobile Header Topbar (visible only on lg:hidden) */}
@@ -143,6 +160,22 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
         <div className="lg:hidden bg-slate-900 text-white border-b border-slate-800 px-4 py-3 space-y-1 sticky top-12 z-30">
+          {onOpenUserManagement && (currentUser?.role === 'superadmin' || currentUser?.role === 'admin') && (
+            <button
+              onClick={() => {
+                onOpenUserManagement();
+                setMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-bold bg-purple-950/70 text-purple-200 border border-purple-700/60 mb-1.5"
+            >
+              <div className="flex items-center space-x-2">
+                <Users className="w-4 h-4 text-purple-400" />
+                <span>Usuarios & Permisos</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-purple-300" />
+            </button>
+          )}
+
           {onOpenCardRates && (
             <button
               onClick={() => {
@@ -175,7 +208,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {navItems.map(item => {
+          {visibleNavItems.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
@@ -261,7 +294,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             Navegación
           </div>
 
-          {navItems.map(item => {
+          {visibleNavItems.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
@@ -293,7 +326,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Bottom Sync & Settings Footer */}
         <div className="p-3 border-t border-slate-800/80 bg-slate-950/40 space-y-2">
-          {onOpenUserManagement && (currentUser?.role === 'superadmin' || currentUser?.username === 'admin' || currentUser?.username === 'facu123') && (
+          {onOpenUserManagement && (currentUser?.role === 'superadmin' || currentUser?.role === 'admin') && (
             <button
               onClick={onOpenUserManagement}
               className="w-full flex items-center justify-between p-2 rounded-lg bg-purple-950/70 hover:bg-purple-900 border border-purple-700/60 text-purple-200 hover:text-white text-xs font-bold transition-all shadow-xs"

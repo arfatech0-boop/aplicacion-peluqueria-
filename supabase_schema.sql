@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS "users" (
   "isDemo" boolean DEFAULT false,
   "trialExpiresAt" text,
   "createdAt" text,
-  "lastLogin" text
+  "lastLogin" text,
+  "permissions" jsonb DEFAULT '[]'::jsonb
 );
 
 -- Table: products

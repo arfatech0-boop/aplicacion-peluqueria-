@@ -651,6 +651,21 @@ export class DataService {
         notes: data.notes || '',
         updatedAt: data.updatedAt || new Date().toISOString()
       };
+    } else if (table === 'users') {
+      supabasePayload = {
+        id: data.id,
+        storeId: data.storeId || this.currentStoreId,
+        username: data.username,
+        password: data.password,
+        name: data.name,
+        role: data.role,
+        active: data.active ?? true,
+        isDemo: data.isDemo ?? false,
+        trialExpiresAt: data.trialExpiresAt || null,
+        createdAt: data.createdAt || new Date().toISOString(),
+        lastLogin: data.lastLogin || null,
+        permissions: data.permissions || []
+      };
     }
 
     // 2. If offline or Supabase fails, save to offlineQueue
@@ -667,7 +682,15 @@ export class DataService {
 
     try {
       const { error } = await this.supabase.from(table).upsert(supabasePayload);
-      if (error) throw error;
+      if (error) {
+        if (table === 'users' && error.message?.includes('permissions')) {
+          const { permissions, ...payloadWithoutPerms } = supabasePayload;
+          const { error: retryErr } = await this.supabase.from(table).upsert(payloadWithoutPerms);
+          if (retryErr) throw retryErr;
+        } else {
+          throw error;
+        }
+      }
     } catch (err) {
       console.warn(`[DataService] Supabase network error on ${table}, queueing offline:`, err);
       this.enqueueOfflineAction({
