@@ -220,6 +220,7 @@ export interface CashRegister {
 
 export interface StockMovement {
   id: string;
+  storeId?: string;
   productId: string;
   productName: string;
   type: 'in' | 'out' | 'adjust' | 'sale' | 'withdrawal';

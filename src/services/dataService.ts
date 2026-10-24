@@ -751,17 +751,14 @@ export class DataService {
 
   public static async saveSale(sale: Sale) {
     const saleWithStore = { ...sale, storeId: this.currentStoreId };
-    await this.saveToSupabase('sales', saleWithStore);
 
-    // Also deduct stock for items
+    // 1. Descuento de stock en memoria local
     for (const item of sale.items) {
       const prod = this.state.products.find(p => p.id === item.productId);
       if (prod) {
         const prevStock = prod.stock;
         prod.stock -= item.quantity;
-        await this.saveToSupabase('products', prod);
-        
-        await this.saveToSupabase('stockMovements', {
+        this.state.stockMovements.unshift({
           id: `sm-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
           storeId: this.currentStoreId,
           productId: prod.id,
@@ -776,9 +773,13 @@ export class DataService {
       }
     }
 
-    // Impactar en la cuenta corriente del cliente si se pagó a crédito o por Remito
+    // 2. Afectación de Cuenta Corriente y Remitos en memoria local
+    let ccAmount = 0;
+    let customerObj: Customer | undefined;
+    let withdrawalObj: CustomerWithdrawal | undefined;
+    let txObj: CustomerTransaction | undefined;
+
     if (sale.customerId) {
-      let ccAmount = 0;
       if (sale.paymentMethod === 'current_account' || sale.invoiceType === 'REMITO') {
         ccAmount = sale.totalAmount;
       } else if (sale.paymentsBreakdown && sale.paymentsBreakdown.length > 0) {
@@ -787,26 +788,24 @@ export class DataService {
       }
 
       if (ccAmount > 0) {
-        const customer = this.state.customers.find(c => c.id === sale.customerId);
-        if (customer) {
-          const prevBalance = Number(customer.currentBalance) || 0;
+        customerObj = this.state.customers.find(c => c.id === sale.customerId);
+        if (customerObj) {
+          const prevBalance = Number(customerObj.currentBalance) || 0;
           const newBalance = prevBalance + ccAmount;
-          customer.currentBalance = newBalance;
-          customer.updatedAt = new Date().toISOString();
-          customer.storeId = customer.storeId || this.currentStoreId;
-          await this.saveCustomer(customer);
+          customerObj.currentBalance = newBalance;
+          customerObj.updatedAt = new Date().toISOString();
+          customerObj.storeId = customerObj.storeId || this.currentStoreId;
 
-          // Vincular y registrar como Remito de mercadería retirada para seguimiento detallado
           const retNumber = sale.invoiceType === 'REMITO'
             ? sale.invoiceNumber.replace(/^FC-/, 'REM-')
             : `REM-${sale.invoiceNumber.replace(/^(FC-|TK-|REM-)/, '')}`;
           const withdrawalId = `with-sale-${sale.id}`;
 
-          const withdrawal: CustomerWithdrawal = {
+          withdrawalObj = {
             id: withdrawalId,
             withdrawalNumber: retNumber,
-            customerId: customer.id,
-            customerName: customer.name,
+            customerId: customerObj.id,
+            customerName: customerObj.name,
             date: sale.date || new Date().toISOString(),
             items: sale.items.map(i => ({
               productId: i.productId,
@@ -826,28 +825,28 @@ export class DataService {
             paidAmount: 0,
             remainingAmount: ccAmount
           };
-          await this.saveToSupabase('withdrawals', withdrawal);
+          this.state.withdrawals.unshift(withdrawalObj);
 
           const itemsSummary = (sale.items || []).map(i => `${i.quantity}x ${i.productName}`).join(', ');
-          const tx: CustomerTransaction = {
+          txObj = {
             id: `tx-sale-${sale.id}`,
             storeId: this.currentStoreId,
             customerId: sale.customerId,
-            customerName: customer.name,
+            customerName: customerObj.name,
             type: 'sale',
             amount: ccAmount,
             balanceAfter: newBalance,
             date: sale.date || new Date().toISOString(),
             description: `Venta ${sale.invoiceType === 'REMITO' ? 'Remito' : 'Cta. Cte.'} #${sale.invoiceNumber}${itemsSummary ? ' (' + itemsSummary + ')' : ''}`,
             saleId: sale.id,
-            withdrawalId: withdrawal.id
+            withdrawalId: withdrawalObj.id
           };
-          await this.saveCustomerTransaction(tx);
+          this.state.customerTransactions.unshift(txObj);
         }
       }
     }
 
-    // Impactar en la Caja si hubo pago en efectivo
+    // 3. Impactar en la Caja abierta en memoria local
     let cashPortion = 0;
     if (sale.paymentMethod === 'cash') {
       cashPortion = Number(sale.totalAmount) || 0;
@@ -856,25 +855,69 @@ export class DataService {
       if (cashPart) cashPortion = Number(cashPart.amount) || 0;
     }
 
-    if (cashPortion > 0) {
-      const openRegister = this.state.cashRegisters.find(
-        c => c.status === 'open' && (!c.storeId || c.storeId === this.currentStoreId)
-      );
-      if (openRegister) {
-        openRegister.cashSales = (Number(openRegister.cashSales) || 0) + cashPortion;
-        openRegister.expectedTotal = (Number(openRegister.expectedTotal) || 0) + cashPortion;
-        if (!Array.isArray(openRegister.movements)) {
-          openRegister.movements = [];
-        }
-        openRegister.movements.unshift({
-          id: `mov-sale-${sale.id}`,
-          type: 'in',
-          amount: cashPortion,
-          description: `Venta contado #${sale.invoiceNumber}`,
-          category: 'sale',
-          date: sale.date || new Date().toISOString(),
-          paymentMethod: 'cash'
+    let openRegister = this.state.cashRegisters.find(
+      c => c.status === 'open' && (!c.storeId || c.storeId === this.currentStoreId)
+    );
+    if (cashPortion > 0 && openRegister) {
+      openRegister.cashSales = (Number(openRegister.cashSales) || 0) + cashPortion;
+      openRegister.expectedTotal = (Number(openRegister.expectedTotal) || 0) + cashPortion;
+      if (!Array.isArray(openRegister.movements)) {
+        openRegister.movements = [];
+      }
+      openRegister.movements.unshift({
+        id: `mov-sale-${sale.id}`,
+        type: 'in',
+        amount: cashPortion,
+        description: `Venta contado #${sale.invoiceNumber}`,
+        category: 'sale',
+        date: sale.date || new Date().toISOString(),
+        paymentMethod: 'cash'
+      });
+    }
+
+    // Guardar estado local optimista de inmediato
+    this.state.sales.unshift(saleWithStore);
+    this.saveToLocalCache();
+    this.notify();
+
+    // 4. Persistencia en la nube (Transaccional Atómica vía Supabase RPC con Fallback)
+    let rpcSuccessful = false;
+    if (navigator.onLine) {
+      try {
+        const { error: rpcError } = await this.supabase.rpc('process_sale_transaction', {
+          p_sale: saleWithStore,
+          p_items: sale.items,
+          p_store_id: this.currentStoreId
         });
+        if (!rpcError) {
+          rpcSuccessful = true;
+        } else {
+          console.warn('[DataService] RPC process_sale_transaction no disponible o con error, usando fallback:', rpcError.message);
+        }
+      } catch (rpcErr) {
+        console.warn('[DataService] Excepción al invocar RPC process_sale_transaction:', rpcErr);
+      }
+    }
+
+    // Si el RPC no se ejecutó (offline o fallback), sincronizar individualmente
+    if (!rpcSuccessful) {
+      await this.saveToSupabase('sales', saleWithStore);
+      for (const item of sale.items) {
+        const prod = this.state.products.find(p => p.id === item.productId);
+        if (prod) {
+          await this.saveToSupabase('products', prod);
+        }
+      }
+      if (customerObj) {
+        await this.saveCustomer(customerObj);
+      }
+      if (withdrawalObj) {
+        await this.saveToSupabase('withdrawals', withdrawalObj);
+      }
+      if (txObj) {
+        await this.saveCustomerTransaction(txObj);
+      }
+      if (cashPortion > 0 && openRegister) {
         await this.saveCashRegister(openRegister);
       }
     }
@@ -1262,52 +1305,140 @@ export class DataService {
   public static async annulSale(saleId: string): Promise<{ success: boolean; error?: string }> {
     try {
       const sale = this.state.sales.find(s => s.id === saleId);
-      if (sale && sale.status !== 'cancelled') {
-        const updatedSale = { ...sale, status: 'cancelled' as const };
-        await this.saveToSupabase('sales', updatedSale);
+      if (!sale) return { success: false, error: 'Venta no encontrada' };
+      if (sale.status === 'cancelled') return { success: false, error: 'La venta ya fue anulada previamente' };
 
-        // Revertir remito si se generó para esta venta
-        const relatedWithdrawal = this.state.withdrawals.find(w => w.saleId === saleId || w.id === `with-sale-${saleId}`);
-        if (relatedWithdrawal) {
-          relatedWithdrawal.status = 'cancelled';
-          await this.saveToSupabase('withdrawals', relatedWithdrawal);
-        }
+      const updatedSale = { ...sale, status: 'cancelled' as const };
+      sale.status = 'cancelled';
 
-        // Revertir deuda en cuenta corriente si aplicaba
-        if (sale.customerId) {
-          let ccAmount = 0;
-          if (sale.paymentMethod === 'current_account' || sale.invoiceType === 'REMITO') {
-            ccAmount = sale.totalAmount;
-          } else if (sale.paymentsBreakdown) {
-            const ccPart = sale.paymentsBreakdown.find(p => p.method === 'current_account');
-            if (ccPart) ccAmount = ccPart.amount;
-          }
-
-          if (ccAmount > 0) {
-            const customer = this.state.customers.find(c => c.id === sale.customerId);
-            if (customer) {
-              const newBal = Math.round(((customer.currentBalance || 0) - ccAmount) * 100) / 100;
-              customer.currentBalance = newBal;
-              customer.updatedAt = new Date().toISOString();
-              await this.saveCustomer(customer);
-
-              const tx: CustomerTransaction = {
-                id: `tx-annul-${Date.now()}`,
-                storeId: this.currentStoreId,
-                customerId: sale.customerId,
-                customerName: customer.name,
-                type: 'adjustment',
-                amount: ccAmount,
-                balanceAfter: newBal,
-                date: new Date().toISOString(),
-                description: `Anulación Venta #${sale.invoiceNumber} (-$${ccAmount.toLocaleString('es-AR')})`,
-                saleId: sale.id
-              };
-              await this.saveCustomerTransaction(tx);
-            }
+      // 1. Restituir el stock de cada producto en la memoria local
+      if (Array.isArray(sale.items)) {
+        for (const item of sale.items) {
+          const prod = this.state.products.find(p => p.id === item.productId);
+          if (prod) {
+            const prevStock = prod.stock;
+            prod.stock += item.quantity;
+            this.state.stockMovements.unshift({
+              id: `sm-annul-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+              storeId: this.currentStoreId,
+              productId: prod.id,
+              productName: prod.name,
+              type: 'adjust',
+              quantity: item.quantity,
+              previousStock: prevStock,
+              newStock: prod.stock,
+              date: new Date().toISOString(),
+              reason: `Anulación Venta ${sale.invoiceNumber}`
+            });
           }
         }
       }
+
+      // 2. Anular remito si se generó para esta venta en memoria local
+      const relatedWithdrawal = this.state.withdrawals.find(w => w.saleId === saleId || w.id === `with-sale-${saleId}`);
+      if (relatedWithdrawal) {
+        relatedWithdrawal.status = 'cancelled';
+      }
+
+      // 3. Revertir saldo de cuenta corriente si aplicaba
+      let ccAmount = 0;
+      let customerObj: Customer | undefined;
+      let txObj: CustomerTransaction | undefined;
+
+      if (sale.customerId) {
+        if (sale.paymentMethod === 'current_account' || sale.invoiceType === 'REMITO') {
+          ccAmount = sale.totalAmount;
+        } else if (sale.paymentsBreakdown) {
+          const ccPart = sale.paymentsBreakdown.find(p => p.method === 'current_account');
+          if (ccPart) ccAmount = ccPart.amount;
+        }
+
+        if (ccAmount > 0) {
+          customerObj = this.state.customers.find(c => c.id === sale.customerId);
+          if (customerObj) {
+            const newBal = Math.round(((customerObj.currentBalance || 0) - ccAmount) * 100) / 100;
+            customerObj.currentBalance = newBal;
+            customerObj.updatedAt = new Date().toISOString();
+
+            txObj = {
+              id: `tx-annul-${Date.now()}`,
+              storeId: this.currentStoreId,
+              customerId: sale.customerId,
+              customerName: customerObj.name,
+              type: 'adjustment',
+              amount: ccAmount,
+              balanceAfter: newBal,
+              date: new Date().toISOString(),
+              description: `Anulación Venta #${sale.invoiceNumber} (-$${ccAmount.toLocaleString('es-AR')})`,
+              saleId: sale.id
+            };
+            this.state.customerTransactions.unshift(txObj);
+          }
+        }
+      }
+
+      // 4. Revertir efectivo de caja en memoria local si aplicaba
+      let cashPortion = 0;
+      if (sale.paymentMethod === 'cash') {
+        cashPortion = Number(sale.totalAmount) || 0;
+      } else if (sale.paymentMethod === 'mixed' && Array.isArray(sale.paymentsBreakdown)) {
+        const cashPart = sale.paymentsBreakdown.find(p => p.method === 'cash');
+        if (cashPart) cashPortion = Number(cashPart.amount) || 0;
+      }
+
+      let openRegister = this.state.cashRegisters.find(
+        c => c.status === 'open' && (!c.storeId || c.storeId === this.currentStoreId)
+      );
+      if (cashPortion > 0 && openRegister) {
+        openRegister.cashSales = Math.max(0, (Number(openRegister.cashSales) || 0) - cashPortion);
+        openRegister.expectedTotal = (Number(openRegister.expectedTotal) || 0) - cashPortion;
+        if (!Array.isArray(openRegister.movements)) openRegister.movements = [];
+        openRegister.movements.unshift({
+          id: `mov-annul-${sale.id}`,
+          type: 'out',
+          amount: cashPortion,
+          description: `Anulación Venta #${sale.invoiceNumber}`,
+          category: 'annulment',
+          date: new Date().toISOString(),
+          paymentMethod: 'cash'
+        });
+      }
+
+      this.saveToLocalCache();
+      this.notify();
+
+      // 5. Persistencia en la nube (Transaccional Atómica vía Supabase RPC con Fallback)
+      let rpcSuccessful = false;
+      if (navigator.onLine) {
+        try {
+          const { error: rpcError } = await this.supabase.rpc('annul_sale_transaction', {
+            p_sale_id: saleId,
+            p_store_id: this.currentStoreId
+          });
+          if (!rpcError) {
+            rpcSuccessful = true;
+          } else {
+            console.warn('[DataService] RPC annul_sale_transaction no disponible o con error, usando fallback:', rpcError.message);
+          }
+        } catch (rpcErr) {
+          console.warn('[DataService] Excepción al invocar RPC annul_sale_transaction:', rpcErr);
+        }
+      }
+
+      if (!rpcSuccessful) {
+        await this.saveToSupabase('sales', updatedSale);
+        if (Array.isArray(sale.items)) {
+          for (const item of sale.items) {
+            const prod = this.state.products.find(p => p.id === item.productId);
+            if (prod) await this.saveToSupabase('products', prod);
+          }
+        }
+        if (relatedWithdrawal) await this.saveToSupabase('withdrawals', relatedWithdrawal);
+        if (customerObj) await this.saveCustomer(customerObj);
+        if (txObj) await this.saveCustomerTransaction(txObj);
+        if (cashPortion > 0 && openRegister) await this.saveCashRegister(openRegister);
+      }
+
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Error al anular venta' };
