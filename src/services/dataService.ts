@@ -3,6 +3,7 @@ import { AppState, CashRegister, Cheque, Customer, CustomerTransaction, Customer
 import { initialAppData } from '../data/mockData';
 import { SUPABASE_URL, SUPABASE_KEY } from '../config';
 import { getCatalogForRubro, DEFAULT_KIOSCO_SUPPLIERS } from '../data/rubroCatalogs';
+import bcrypt from 'bcryptjs';
 
 interface OfflineSyncItem {
   id: string;
@@ -341,20 +342,24 @@ export class DataService {
 
   private static async fetchAllData() {
     try {
+      const sId = this.currentStoreId || 'store-demo-a';
+      const currentUser = this.state.users?.find(u => u.id === this.currentUserId);
+      const isSuperAdmin = currentUser?.role === 'superadmin' || currentUser?.username === 'admin' || currentUser?.username === 'facu123';
+
       const results = await Promise.allSettled([
-        this.supabase.from('stores').select('*'),
-        this.supabase.from('storeInfo').select('*'),
-        this.supabase.from('users').select('*'),
-        this.supabase.from('products').select('*'),
-        this.supabase.from('suppliers').select('*'),
-        this.supabase.from('priceIncreaseLogs').select('*'),
-        this.supabase.from('customers').select('*'),
-        this.supabase.from('customerTransactions').select('*'),
-        this.supabase.from('withdrawals').select('*'),
-        this.supabase.from('sales').select('*'),
-        this.supabase.from('cheques').select('*'),
-        this.supabase.from('cashRegisters').select('*'),
-        this.supabase.from('stockMovements').select('*')
+        isSuperAdmin ? this.supabase.from('stores').select('*') : this.supabase.from('stores').select('*').or(`id.eq.${sId},id.eq.store-demo-a`),
+        this.supabase.from('storeInfo').select('*').or(`storeId.eq.${sId},storeId.is.null,storeId.eq.store-demo-a`),
+        isSuperAdmin ? this.supabase.from('users').select('*') : this.supabase.from('users').select('*').or(`storeId.eq.${sId},role.eq.superadmin`),
+        this.supabase.from('products').select('*').or(`storeId.eq.${sId},storeId.is.null,storeId.eq.store-demo-a`),
+        this.supabase.from('suppliers').select('*').or(`storeId.eq.${sId},storeId.is.null,storeId.eq.store-demo-a`),
+        this.supabase.from('priceIncreaseLogs').select('*').or(`storeId.eq.${sId},storeId.eq.store-demo-a`),
+        this.supabase.from('customers').select('*').or(`storeId.eq.${sId},storeId.eq.store-demo-a`),
+        this.supabase.from('customerTransactions').select('*').or(`storeId.eq.${sId},storeId.eq.store-demo-a`),
+        this.supabase.from('withdrawals').select('*').or(`storeId.eq.${sId},storeId.eq.store-demo-a`),
+        this.supabase.from('sales').select('*').or(`storeId.eq.${sId},storeId.eq.store-demo-a`),
+        this.supabase.from('cheques').select('*').or(`storeId.eq.${sId},storeId.eq.store-demo-a`),
+        this.supabase.from('cashRegisters').select('*').or(`storeId.eq.${sId},storeId.eq.store-demo-a`),
+        this.supabase.from('stockMovements').select('*').or(`storeId.eq.${sId},storeId.eq.store-demo-a`)
       ]);
 
       const [
@@ -531,10 +536,13 @@ export class DataService {
     };
   }
 
-  public static setCurrentStoreId(storeId: string) {
+  public static async setCurrentStoreId(storeId: string) {
     this.currentStoreId = storeId;
     localStorage.setItem('gc_store_id', storeId);
     this.notify();
+    if (navigator.onLine) {
+      await this.fetchAllData();
+    }
   }
 
   public static getCurrentStoreId(): string {
@@ -1457,7 +1465,11 @@ export class DataService {
 
   public static async saveUser(user: SystemUser): Promise<{ success: boolean; error?: string }> {
     try {
-      await this.saveToSupabase('users', user);
+      const secureUser = { ...user };
+      if (secureUser.password && !secureUser.password.startsWith('$2a$') && !secureUser.password.startsWith('$2b$')) {
+        secureUser.password = bcrypt.hashSync(secureUser.password, 10);
+      }
+      await this.saveToSupabase('users', secureUser);
       return { success: true };
     } catch (err: any) {
       console.error('Error saving user:', err);
