@@ -11,6 +11,8 @@ interface OfflineSyncItem {
   action: 'upsert' | 'delete';
   data: any;
   timestamp: number;
+  retries?: number;
+  lastError?: string;
 }
 
 export class DataService {
@@ -319,18 +321,47 @@ export class DataService {
 
     const remainingQueue: OfflineSyncItem[] = [];
 
-    for (const item of this.offlineQueue) {
+    // Ordenamiento topológico: entidades maestras primero, luego transacciones dependientes
+    const tablePriority: Record<string, number> = {
+      stores: 1,
+      storeInfo: 2,
+      users: 3,
+      suppliers: 4,
+      products: 5,
+      customers: 6,
+      sales: 7,
+      stockMovements: 8,
+      withdrawals: 9,
+      customerTransactions: 10,
+      cheques: 11,
+      cashRegisters: 12,
+      priceIncreaseLogs: 13
+    };
+
+    const sortedQueue = [...this.offlineQueue].sort((a, b) => {
+      const pA = tablePriority[a.table] || 99;
+      const pB = tablePriority[b.table] || 99;
+      if (pA !== pB) return pA - pB;
+      return a.timestamp - b.timestamp;
+    });
+
+    for (const item of sortedQueue) {
       try {
         if (item.action === 'upsert') {
-          const { error } = await this.supabase.from(item.table).upsert(item.data);
+          const { error } = await this.supabase.from(item.table).upsert(item.data, { onConflict: 'id' });
           if (error) throw error;
         } else if (item.action === 'delete') {
           const { error } = await this.supabase.from(item.table).delete().eq('id', item.data.id);
           if (error) throw error;
         }
-      } catch (err) {
-        console.warn(`[DataService] Error syncing item ${item.table} ${item.id}:`, err);
-        remainingQueue.push(item);
+      } catch (err: any) {
+        console.warn(`[DataService] Error sincronizando ${item.table} (${item.id}):`, err);
+        const retries = (item.retries || 0) + 1;
+        if (retries < 5) {
+          remainingQueue.push({ ...item, retries, lastError: err?.message || String(err) });
+        } else {
+          console.error(`[DataService] Elemento descartado tras 5 reintentos fallidos:`, item);
+        }
       }
     }
 
@@ -687,6 +718,20 @@ export class DataService {
   }
 
   private static enqueueOfflineAction(item: OfflineSyncItem) {
+    if (item.action === 'upsert' && item.data?.id) {
+      const existingIdx = this.offlineQueue.findIndex(
+        q => q.action === 'upsert' && q.table === item.table && q.data?.id === item.data.id
+      );
+      if (existingIdx >= 0) {
+        this.offlineQueue[existingIdx] = {
+          ...item,
+          retries: this.offlineQueue[existingIdx].retries || 0
+        };
+        this.saveOfflineQueue();
+        this.notify();
+        return;
+      }
+    }
     this.offlineQueue.push(item);
     this.saveOfflineQueue();
     this.notify();
