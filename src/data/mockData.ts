@@ -461,7 +461,8 @@ export const initialAppData: AppState = {
       username: "kioscomate",
       password: "kioscomateo2026",
       name: "Kiosco Mate",
-      role: "admin",
+      role: "cashier",
+      permissions: ["stock", "customers", "withdrawals", "suppliers"],
       storeId: "store-kioscomate",
       active: true,
       createdAt: new Date().toISOString()

@@ -91,12 +91,22 @@ export class DataService {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed && typeof parsed === 'object') {
-          const cachedUsers = parsed.users || [];
+          const cachedUsers = (parsed.users || []).map((u: SystemUser) => ({
+            ...u,
+            permissions: (Array.isArray(u.permissions) && u.permissions.length > 0)
+              ? u.permissions
+              : DataService.getUserPermissions(u.id, u.username)
+          }));
           const initialUsers = initialAppData.users || [];
           const mergedUsers = [...cachedUsers];
           for (const iu of initialUsers) {
             if (!mergedUsers.some(u => u.username.toLowerCase() === iu.username.toLowerCase())) {
-              mergedUsers.push(iu);
+              mergedUsers.push({
+                ...iu,
+                permissions: (Array.isArray(iu.permissions) && iu.permissions.length > 0)
+                  ? iu.permissions
+                  : DataService.getUserPermissions(iu.id, iu.username)
+              });
             }
           }
 
@@ -427,10 +437,29 @@ export class DataService {
         hasAnySuccess = true;
       }
       if (!usersRes?.error && Array.isArray(usersRes?.data) && usersRes.data.length > 0) {
-        const mergedUsers = [...usersRes.data];
+        const mergedUsers = usersRes.data.map(u => {
+          const existing = this.state.users?.find(eu => eu.id === u.id || eu.username.toLowerCase() === u.username.toLowerCase());
+          const perms = (Array.isArray(u.permissions) && u.permissions.length > 0)
+            ? u.permissions
+            : (Array.isArray(existing?.permissions) && existing.permissions.length > 0)
+              ? existing.permissions
+              : DataService.getUserPermissions(u.id, u.username);
+          return {
+            ...u,
+            permissions: perms || u.permissions
+          };
+        });
+
         for (const iu of initialAppData.users || []) {
           if (!mergedUsers.some(u => u.username.toLowerCase() === iu.username.toLowerCase())) {
-            mergedUsers.push(iu);
+            const existing = this.state.users?.find(eu => eu.id === iu.id || eu.username.toLowerCase() === iu.username.toLowerCase());
+            const perms = (Array.isArray(existing?.permissions) && existing.permissions.length > 0)
+              ? existing.permissions
+              : DataService.getUserPermissions(iu.id, iu.username);
+            mergedUsers.push({
+              ...iu,
+              permissions: perms || iu.permissions
+            });
           }
         }
         updatedState.users = mergedUsers;
@@ -552,11 +581,43 @@ export class DataService {
     };
   }
 
+  public static getUserPermissions(userId?: string, username?: string): string[] | undefined {
+    try {
+      const raw = localStorage.getItem('gc_user_permissions');
+      if (!raw) return undefined;
+      const map: Record<string, string[]> = JSON.parse(raw);
+      if (userId && map[userId] && Array.isArray(map[userId])) return map[userId];
+      if (username && map[username.toLowerCase()] && Array.isArray(map[username.toLowerCase()])) return map[username.toLowerCase()];
+    } catch (e) {
+      console.warn('[DataService] Error reading gc_user_permissions:', e);
+    }
+    return undefined;
+  }
+
+  public static setUserPermissions(userId: string, username: string, permissions: string[]) {
+    try {
+      const raw = localStorage.getItem('gc_user_permissions');
+      const map: Record<string, string[]> = raw ? JSON.parse(raw) : {};
+      if (userId) map[userId] = permissions;
+      if (username) map[username.toLowerCase()] = permissions;
+      localStorage.setItem('gc_user_permissions', JSON.stringify(map));
+    } catch (e) {
+      console.warn('[DataService] Error saving gc_user_permissions:', e);
+    }
+  }
+
   public static getUserByUsername(username: string): SystemUser | undefined {
-    return this.state.users.find(u => 
+    const user = this.state.users.find(u => 
       u.username.toLowerCase() === username.toLowerCase() || 
       u.email?.toLowerCase() === username.toLowerCase()
     );
+    if (user) {
+      const perms = this.getUserPermissions(user.id, user.username);
+      if (perms && perms.length > 0 && (!user.permissions || user.permissions.length === 0)) {
+        user.permissions = perms;
+      }
+    }
+    return user;
   }
 
   public static subscribe(listener: (state: AppState) => void): () => void {
@@ -1536,6 +1597,9 @@ export class DataService {
       const secureUser = { ...user };
       if (secureUser.password && !secureUser.password.startsWith('$2a$') && !secureUser.password.startsWith('$2b$')) {
         secureUser.password = bcrypt.hashSync(secureUser.password, 10);
+      }
+      if (Array.isArray(secureUser.permissions)) {
+        this.setUserPermissions(secureUser.id, secureUser.username, secureUser.permissions);
       }
       await this.saveToSupabase('users', secureUser);
       return { success: true };

@@ -95,6 +95,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ appState, onLogin }) => {
         setErrorMessage('Contraseña incorrecta. Por favor intente nuevamente.');
         return;
       }
+      const storedPerms = DataService.getUserPermissions(foundUser.id, foundUser.username);
+      if (storedPerms && storedPerms.length > 0) {
+        foundUser.permissions = storedPerms;
+      }
       onLogin(foundUser, foundUser.storeId || `store-${foundUser.id}`);
     } else {
       setErrorMessage('Usuario no encontrado. Pida al administrador que le cree una cuenta.');

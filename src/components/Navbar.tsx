@@ -101,13 +101,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const allowedTabs: string[] = React.useMemo(() => {
     if (!currentUser) return ['pos', 'guide'];
-    if (currentUser.role === 'admin' || currentUser.role === 'superadmin') {
+    // Superadmin always has access to all modules
+    if (currentUser.role === 'superadmin') {
       return ['dashboard', 'pos', 'stock', 'suppliers', 'customers', 'withdrawals', 'cheques', 'cash', 'search', 'reports', 'guide'];
     }
-    if (Array.isArray(currentUser.permissions) && currentUser.permissions.length > 0) {
-      return [...currentUser.permissions, 'guide'];
+
+    // Check if user has explicit granular permissions (from object or persistent storage)
+    const storedPerms = DataService.getUserPermissions(currentUser.id, currentUser.username);
+    const activePerms = (Array.isArray(currentUser.permissions) && currentUser.permissions.length > 0)
+      ? currentUser.permissions
+      : storedPerms;
+
+    if (Array.isArray(activePerms) && activePerms.length > 0) {
+      return [...activePerms, 'guide'];
     }
-    if (currentUser.role === 'manager') {
+
+    if (currentUser.role === 'admin' || currentUser.role === 'manager') {
       return ['dashboard', 'pos', 'stock', 'suppliers', 'customers', 'withdrawals', 'cheques', 'cash', 'search', 'reports', 'guide'];
     }
     // Default cashier

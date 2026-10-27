@@ -197,17 +197,26 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   };
 
   const handleOpenEdit = (user: SystemUser) => {
+    const storedPerms = DataService.getUserPermissions(user.id, user.username);
     const userPerms = Array.isArray(user.permissions) && user.permissions.length > 0
       ? [...user.permissions]
-      : user.role === 'admin' || user.role === 'superadmin'
-        ? [...ROLE_PRESET_PERMISSIONS.admin]
-        : user.role === 'manager'
-          ? [...ROLE_PRESET_PERMISSIONS.manager]
-          : [...ROLE_PRESET_PERMISSIONS.cashier];
+      : Array.isArray(storedPerms) && storedPerms.length > 0
+        ? [...storedPerms]
+        : user.role === 'admin' || user.role === 'superadmin'
+          ? [...ROLE_PRESET_PERMISSIONS.admin]
+          : user.role === 'manager'
+            ? [...ROLE_PRESET_PERMISSIONS.manager]
+            : [...ROLE_PRESET_PERMISSIONS.cashier];
 
-    setEditingUser({ ...user });
+    setEditingUser({ ...user, permissions: userPerms });
     setSelectedPermissions(userPerms);
-    setRolePreset(user.role);
+
+    const isAll = userPerms.length >= MODULE_PERMISSIONS.length;
+    const isManager = JSON.stringify([...userPerms].sort()) === JSON.stringify([...ROLE_PRESET_PERMISSIONS.manager].sort());
+    const isCashier = JSON.stringify([...userPerms].sort()) === JSON.stringify([...ROLE_PRESET_PERMISSIONS.cashier].sort());
+    const detectedPreset = isAll ? 'admin' : isManager ? 'manager' : isCashier ? 'cashier' : 'custom';
+    setRolePreset(detectedPreset);
+
     setShowPassword(false);
     setErrorMsg('');
     setSuccessMsg('');
@@ -319,6 +328,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       }
     }
 
+    DataService.setUserPermissions(userToSave.id, userToSave.username, selectedPermissions);
     const res = await DataService.saveUser(userToSave);
 
     if (res.success) {
@@ -461,13 +471,16 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                         ? Math.max(0, Math.ceil((new Date(user.trialExpiresAt!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
                         : 0;
 
+                      const storedPerms = DataService.getUserPermissions(user.id, user.username);
                       const activePerms = Array.isArray(user.permissions) && user.permissions.length > 0
                         ? user.permissions
-                        : user.role === 'admin' || user.role === 'superadmin'
-                          ? ROLE_PRESET_PERMISSIONS.admin
-                          : user.role === 'manager'
-                            ? ROLE_PRESET_PERMISSIONS.manager
-                            : ROLE_PRESET_PERMISSIONS.cashier;
+                        : Array.isArray(storedPerms) && storedPerms.length > 0
+                          ? storedPerms
+                          : user.role === 'admin' || user.role === 'superadmin'
+                            ? ROLE_PRESET_PERMISSIONS.admin
+                            : user.role === 'manager'
+                              ? ROLE_PRESET_PERMISSIONS.manager
+                              : ROLE_PRESET_PERMISSIONS.cashier;
 
                       const isAllPerms = activePerms.length >= MODULE_PERMISSIONS.length;
 

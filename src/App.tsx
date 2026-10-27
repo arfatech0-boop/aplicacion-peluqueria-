@@ -78,8 +78,12 @@ export default function App() {
       const activeUser = currentUserRef.current;
       const stored = localStorage.getItem('gc_current_user');
       if (activeUser && stored) {
-        const updated = newState.users?.find(u => u.id === activeUser.id);
+        let updated = newState.users?.find(u => u.id === activeUser.id || u.username.toLowerCase() === activeUser.username.toLowerCase());
         if (updated) {
+          const storedPerms = DataService.getUserPermissions(updated.id, updated.username);
+          if (storedPerms && (!updated.permissions || updated.permissions.length === 0)) {
+            updated = { ...updated, permissions: storedPerms };
+          }
           if (!updated.active) {
             handleLogout();
           } else if (
@@ -100,11 +104,16 @@ export default function App() {
   // Guard activeTab based on user permissions
   useEffect(() => {
     if (!currentUser) return;
-    if (currentUser.role === 'admin' || currentUser.role === 'superadmin') return;
+    if (currentUser.role === 'superadmin') return;
 
-    const allowed = Array.isArray(currentUser.permissions) && currentUser.permissions.length > 0
-      ? [...currentUser.permissions, 'guide']
-      : currentUser.role === 'manager'
+    const storedPerms = DataService.getUserPermissions(currentUser.id, currentUser.username);
+    const activePerms = (Array.isArray(currentUser.permissions) && currentUser.permissions.length > 0)
+      ? currentUser.permissions
+      : storedPerms;
+
+    const allowed = Array.isArray(activePerms) && activePerms.length > 0
+      ? [...activePerms, 'guide']
+      : currentUser.role === 'admin' || currentUser.role === 'manager'
         ? ['dashboard', 'pos', 'stock', 'suppliers', 'customers', 'withdrawals', 'cheques', 'cash', 'search', 'reports', 'guide']
         : ['pos', 'cash', 'guide'];
 
@@ -114,10 +123,17 @@ export default function App() {
   }, [currentUser, activeTab]);
 
   const handleLogin = (user: SystemUser, storeId: string) => {
-    currentUserRef.current = user;
-    setCurrentUser(user);
-    DataService.setCurrentSession(storeId, user.id);
-    localStorage.setItem('gc_current_user', JSON.stringify(user));
+    const storedPerms = DataService.getUserPermissions(user.id, user.username);
+    const fullUser: SystemUser = {
+      ...user,
+      permissions: (Array.isArray(user.permissions) && user.permissions.length > 0)
+        ? user.permissions
+        : storedPerms || user.permissions
+    };
+    currentUserRef.current = fullUser;
+    setCurrentUser(fullUser);
+    DataService.setCurrentSession(storeId, fullUser.id);
+    localStorage.setItem('gc_current_user', JSON.stringify(fullUser));
   };
 
   const handleCreateStore = async (newStore: any, adminUser: SystemUser) => {
